@@ -163,15 +163,15 @@ class LoanController extends Controller
             if ($method === 'daily') {
                 // Actual/365: Calculate based on actual days between payments
                 $days = $prevDate->diffInDays($actualDate);
-                $interest = $balance * ($annualRate / 100) * $days / 365;
+                $interest = round($balance * ($annualRate / 100) * $days / 365, 0);
             } else {
                 // Monthly: Fixed monthly rate
                 $monthlyRate = ($annualRate / 100) / 12;
-                $interest = $balance * $monthlyRate;
+                $interest = round($balance * $monthlyRate, 0);
                 $days = $prevDate->diffInDays($actualDate); // Just for display
             }
 
-            $payment = $fixedMonthlyPayment;
+            $payment = round($fixedMonthlyPayment, 0);
 
             // Handle last month - pay off remaining balance
             if ($i == $months) {
@@ -180,7 +180,7 @@ class LoanController extends Controller
                 }
             }
 
-            $principalPayment = $payment - $interest;
+            $principalPayment = round($payment - $interest, 0);
 
             // Prevent negative balance
             if ($principalPayment > $balance) {
@@ -188,7 +188,7 @@ class LoanController extends Controller
                 $payment = $interest + $principalPayment;
             }
 
-            $balance -= $principalPayment;
+            $balance = round($balance - $principalPayment, 0);
             if ($balance < 0) $balance = 0;
 
             $schedule->push([
