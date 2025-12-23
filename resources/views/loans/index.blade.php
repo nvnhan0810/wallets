@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <!-- Tổng gốc còn lại (Vay + Nợ) -->
+    <!-- Tổng gốc còn lại (Vay + Nợ) + Tổng đang cho mượn -->
     <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div class="bg-white shadow rounded-lg border border-gray-100 p-4 sm:p-5">
             <div class="flex items-center justify-between">
@@ -33,6 +33,17 @@
                 </div>
                 <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
                     Σ
+                </div>
+            </div>
+        </div>
+        <div class="bg-white shadow rounded-lg border border-gray-100 p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Tổng đang cho mượn (còn lại)</p>
+                    <p class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totalLendRemaining ?? 0, 0) }} ₫</p>
+                </div>
+                <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
+                    ⇄
                 </div>
             </div>
         </div>

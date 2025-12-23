@@ -68,9 +68,19 @@ class LoanController extends Controller
             return $carry;
         }, 0);
 
+        // Tổng đang cho mượn (lend) sau khi trừ phần đã nhận
+        $totalLendRemaining = $loans->reduce(function ($carry, $loan) {
+            if ($loan->type === 'lend') {
+                $paid = $loan->payments->sum('amount');
+                return $carry + max(($loan->principal_amount - $paid), 0);
+            }
+            return $carry;
+        }, 0);
+
         return view('loans.index', [
             'loans' => $loans,
             'totalRemaining' => $totalRemaining,
+            'totalLendRemaining' => $totalLendRemaining,
         ]);
     }
 
