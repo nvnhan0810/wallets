@@ -35,10 +35,13 @@
                             </h3>
                         </a>
                         <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                            @php $method = $loan->interest_calculation_method ?? 'monthly'; @endphp
                             @if($loan->type == 'bank')
                                 Vay Ngân hàng
-                                @if(($loan->interest_calculation_method ?? 'monthly') === 'daily')
+                                @if($method === 'daily')
                                     <span class="ml-1 text-xs text-blue-600">(Tính theo ngày)</span>
+                                @elseif($method === 'custom')
+                                    <span class="ml-1 text-xs text-purple-600">(Custom)</span>
                                 @endif
                             @elseif($loan->type == 'borrow') Mượn Nợ
                             @else Cho Mượn
@@ -70,6 +73,7 @@
                             <div class="pt-2 border-t border-gray-100">
                                 <dt class="text-xs font-medium text-gray-500">Đóng hàng tháng</dt>
                                 <dd class="text-sm text-gray-700">{{ number_format($loan->monthly_payment, 0) }} ₫</dd>
+                                <p class="text-xs text-gray-500 mt-1">Tổng gốc còn lại: {{ number_format($loan->remaining_principal, 0) }} ₫</p>
                             </div>
                         </div>
                     @else
@@ -81,6 +85,10 @@
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-500">Tổng: {{ number_format($loan->principal_amount, 0) }}</span>
                                 <span class="text-green-600">Đã trả: {{ number_format($loan->principal_amount - $loan->remaining_amount, 0) }}</span>
+                            </div>
+                            <div class="pt-2 border-t border-gray-100">
+                                <dt class="text-xs font-medium text-gray-500">Gốc còn lại</dt>
+                                <dd class="text-sm text-gray-700 font-semibold">{{ number_format($loan->remaining_amount, 0) }} ₫</dd>
                             </div>
                         </div>
                     @endif

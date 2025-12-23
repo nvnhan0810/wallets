@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Models\Holiday;
+use App\Models\LoanCustomSchedule;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -20,6 +21,7 @@ class LoanController extends Controller
             if ($loan->type === 'bank') {
                 // Calculate amortization status
                 $schedule = $this->calculateAmortization(
+                    $loan->id,
                     $loan->principal_amount,
                     $loan->interest_rate,
                     $loan->term_months,
@@ -28,22 +30,24 @@ class LoanController extends Controller
                     $loan->interest_calculation_method ?? 'monthly'
                 );
 
-                // Find current state based on months passed
-                // We use integer casting to ensure no float issues.
-                // diffInMonths returns the number of full months between start date and now.
-                // Example: Start 05/07/2023 -> 05/08/2023 is 1 month.
-                $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+                if ($schedule->isEmpty()) {
+                    $loan->remaining_months = $loan->term_months;
+                    $loan->remaining_principal = $loan->principal_amount;
+                    $loan->remaining_interest = 0;
+                } else {
+                    // Find current state based on months passed
+                    $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+                    $maxIndex = $schedule->max('month_index');
+                    $monthsPassed = min($monthsPassed, $maxIndex - 1);
 
-                $currentStatus = $schedule->first(function($item) use ($monthsPassed) {
-                    return $item['month_index'] > $monthsPassed;
-                }) ?? $schedule->last();
+                    $currentStatus = $schedule->first(function($item) use ($monthsPassed) {
+                        return $item['month_index'] > $monthsPassed;
+                    }) ?? $schedule->last();
 
-                $loan->remaining_months = max(0, $loan->term_months - $monthsPassed);
-                // If we are past the term, rely on what's left in the schedule or 0
-                $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
-
-                // For "Remaining Interest", it's sum of future interest in schedule
-                $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
+                    $loan->remaining_months = max(0, ($loan->term_months ?? $maxIndex) - $monthsPassed);
+                    $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
+                    $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
+                }
 
             } else {
                 // Simple debt/lend
@@ -63,6 +67,7 @@ class LoanController extends Controller
 
         if ($loan->type === 'bank') {
             $schedule = $this->calculateAmortization(
+                $loan->id,
                 $loan->principal_amount,
                 $loan->interest_rate,
                 $loan->term_months,
@@ -71,8 +76,24 @@ class LoanController extends Controller
                 $loan->interest_calculation_method ?? 'monthly'
             );
 
-            // Calculate months passed for highlighting in view
-            $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+            if ($schedule->isNotEmpty()) {
+                $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+                $maxIndex = $schedule->max('month_index');
+                $monthsPassed = min($monthsPassed, $maxIndex - 1);
+
+                $currentStatus = $schedule->first(function($item) use ($monthsPassed) {
+                    return $item['month_index'] > $monthsPassed;
+                }) ?? $schedule->last();
+
+                $loan->remaining_months = max(0, ($loan->term_months ?? $maxIndex) - $monthsPassed);
+                $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
+                $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
+            } else {
+                $monthsPassed = 0;
+                $loan->remaining_months = $loan->term_months;
+                $loan->remaining_principal = $loan->principal_amount;
+                $loan->remaining_interest = 0;
+            }
         }
 
         return view('loans.show', compact('loan', 'schedule', 'monthsPassed'));
@@ -92,10 +113,11 @@ class LoanController extends Controller
             'started_at' => 'required|string',
             // Optional fields depending on type
             'interest_rate' => 'nullable|numeric',
-            'interest_calculation_method' => 'nullable|in:monthly,daily',
+            'interest_calculation_method' => 'nullable|in:monthly,daily,custom',
             'term_months' => 'nullable|integer',
             'months_paid' => 'nullable|integer',
             'monthly_payment' => 'nullable|numeric',
+            'custom_schedule' => 'sometimes|array',
         ]);
 
         // Convert date format from dd/mm/yyyy to yyyy-mm-dd
@@ -104,7 +126,57 @@ class LoanController extends Controller
         $validated['months_paid'] = $validated['months_paid'] ?? 0;
         $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
 
-        Loan::create($validated);
+        if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
+            // monthly_payment required for custom
+            $request->validate([
+                'monthly_payment' => 'required|numeric|min:1',
+                'term_months' => 'required|integer|min:1',
+                'custom_schedule' => 'required|array|min:1',
+            ]);
+        }
+
+        $loan = Loan::create($validated);
+
+        // Save custom schedules if provided
+        if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
+            $customRows = $request->input('custom_schedule', []);
+            $monthlyPayment = (float) $validated['monthly_payment'];
+            $errors = [];
+            foreach ($customRows as $idx => $row) {
+                if (!isset($row['payment'], $row['principal'], $row['interest'])) {
+                    $errors[] = "Dòng " . ($idx + 1) . " thiếu dữ liệu.";
+                    continue;
+                }
+                $payment = (float) $row['payment'];
+                $principal = (float) $row['principal'];
+                $interest = (float) $row['interest'];
+                $fee = (float) ($row['fee'] ?? 0);
+
+                if (round($principal + $interest + $fee, 0) !== round($payment, 0)) {
+                    $errors[] = "Dòng " . ($idx + 1) . ": Gốc + Lãi + Phí phải bằng Tổng trả.";
+                    continue;
+                }
+                if (round($payment, 0) > round($monthlyPayment, 0)) {
+                    $errors[] = "Dòng " . ($idx + 1) . ": Tổng trả vượt số tiền hàng tháng.";
+                    continue;
+                }
+
+                LoanCustomSchedule::create([
+                    'loan_id' => $loan->id,
+                    'month_index' => $row['month_index'] ?? ($idx + 1),
+                    'payment' => $payment,
+                    'principal' => $principal,
+                    'interest' => $interest,
+                    'fee' => $fee,
+                    'remaining_principal' => $row['remaining_principal'] ?? 0,
+                    'paid_at' => isset($row['paid_at']) ? $this->convertDateFormat($row['paid_at']) : null,
+                    'note' => $row['note'] ?? null,
+                ]);
+            }
+            if (!empty($errors)) {
+                return back()->withErrors($errors)->withInput();
+            }
+        }
 
         return redirect()->route('dashboard');
     }
@@ -134,13 +206,73 @@ class LoanController extends Controller
     /**
      * Helper to calculate amortization schedule
      */
-    private function calculateAmortization($principal, $annualRate, $months, $startDate, $fixedMonthlyPayment = null, $method = 'monthly')
+    private function calculateAmortization($loanId, $principal, $annualRate, $months, $startDate, $fixedMonthlyPayment = null, $method = 'monthly')
     {
         // $annualRate is in percent (e.g. 15.8)
         $balance = $principal;
 
         $schedule = collect([]);
         $prevDate = Carbon::parse($startDate);
+
+        // Custom method: return schedules from stored custom rows
+        if ($method === 'custom') {
+            $rows = LoanCustomSchedule::where('loan_id', $loanId)
+                ->orderBy('month_index')
+                ->get();
+            if ($rows->isEmpty()) {
+                return $schedule;
+            }
+
+            $balance = $principal;
+            $result = [];
+            foreach ($rows as $row) {
+                $date = $row->paid_at ? Carbon::parse($row->paid_at) : Carbon::now();
+                $principalPayment = (float) $row->principal;
+                $interest = (float) $row->interest;
+                $fee = (float) ($row->fee ?? 0);
+                $payment = $row->payment ?? ($principalPayment + $interest + $fee);
+
+                $balance = max($balance - $principalPayment, 0);
+
+                $result[] = [
+                    'month_index' => $row->month_index,
+                    'date' => $date,
+                    'theoretical_date' => $date,
+                    'is_adjusted' => false,
+                    'days' => null,
+                    'payment' => $payment,
+                    'interest' => $interest,
+                    'principal' => $principalPayment,
+                    'fee' => $fee,
+                    'remaining_principal' => $balance,
+                ];
+            }
+
+            return collect($result);
+        }
+
+        // Custom method: return schedules from stored custom rows
+        if ($method === 'custom') {
+            $rows = LoanCustomSchedule::where('loan_id', $loanId)
+                ->orderBy('month_index')
+                ->get();
+            if ($rows->isEmpty()) {
+                return $schedule;
+            }
+            return $rows->map(function ($row) {
+                return [
+                    'month_index' => $row->month_index,
+                    'date' => $row->paid_at ?? Carbon::now(),
+                    'theoretical_date' => $row->paid_at ?? Carbon::now(),
+                    'is_adjusted' => false,
+                    'days' => null,
+                    'payment' => $row->payment,
+                    'interest' => $row->interest,
+                    'principal' => $row->principal,
+                    'remaining_principal' => $row->remaining_principal,
+                ];
+            });
+        }
 
         // If fixed monthly payment is not provided, calculate standard annuity
         if (!$fixedMonthlyPayment) {

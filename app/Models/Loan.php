@@ -31,5 +31,10 @@ class Loan extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function customSchedules(): HasMany
+    {
+        return $this->hasMany(LoanCustomSchedule::class);
+    }
 }
 

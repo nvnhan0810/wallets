@@ -38,10 +38,15 @@
             </div>
             <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt class="text-sm font-medium text-gray-500">Phương pháp tính lãi</dt>
-                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    @if(($loan->interest_calculation_method ?? 'monthly') === 'daily')
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 space-x-2">
+                    @php $method = $loan->interest_calculation_method ?? 'monthly'; @endphp
+                    @if($method === 'daily')
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Theo ngày (Actual/365)
+                            Actual/365
+                        </span>
+                    @elseif($method === 'custom')
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Custom (nhập tay)
                         </span>
                     @else
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -54,6 +59,16 @@
                 <dt class="text-sm font-medium text-gray-500">Thời hạn vay</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ $loan->term_months }} tháng</dd>
             </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Gốc còn lại</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ number_format($loan->remaining_principal ?? 0, 0) }} ₫</dd>
+            </div>
+            @if(($loan->interest_calculation_method ?? 'monthly') === 'custom')
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Tổng trả hàng tháng</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ number_format($loan->monthly_payment, 0) }} ₫</dd>
+            </div>
+            @endif
             @endif
         </dl>
     </div>
@@ -75,12 +90,16 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tháng</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày trả</th>
-                                @if(($loan->interest_calculation_method ?? 'monthly') === 'daily')
+                                @php $method = $loan->interest_calculation_method ?? 'monthly'; @endphp
+                                @if($method === 'daily')
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số ngày</th>
                                 @endif
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng trả</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiền gốc</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiền lãi</th>
+                                @if($method === 'custom')
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phí</th>
+                                @endif
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dư nợ còn lại</th>
                             </tr>
                         </thead>
@@ -103,7 +122,7 @@
                                         </span>
                                     @endif
                                 </td>
-                                @if(($loan->interest_calculation_method ?? 'monthly') === 'daily')
+                                @if($method === 'daily')
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $item['days'] }} ngày
                                 </td>
@@ -117,6 +136,11 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ number_format($item['interest'], 0) }} ₫
                                 </td>
+                                @if($method === 'custom')
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ number_format($item['fee'] ?? 0, 0) }} ₫
+                                </td>
+                                @endif
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ number_format($item['remaining_principal'], 0) }} ₫
                                 </td>
