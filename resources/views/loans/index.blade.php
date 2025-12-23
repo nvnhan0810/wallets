@@ -23,6 +23,21 @@
         </div>
     </div>
 
+    <!-- Tổng gốc còn lại (Vay + Nợ) -->
+    <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-white shadow rounded-lg border border-gray-100 p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Tổng gốc còn lại (Vay + Nợ)</p>
+                    <p class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totalRemaining ?? 0, 0) }} ₫</p>
+                </div>
+                <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
+                    Σ
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Grid -->
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         @forelse($loans as $loan)
@@ -73,7 +88,6 @@
                             <div class="pt-2 border-t border-gray-100">
                                 <dt class="text-xs font-medium text-gray-500">Đóng hàng tháng</dt>
                                 <dd class="text-sm text-gray-700">{{ number_format($loan->monthly_payment, 0) }} ₫</dd>
-                                <p class="text-xs text-gray-500 mt-1">Tổng gốc còn lại: {{ number_format($loan->remaining_principal, 0) }} ₫</p>
                             </div>
                         </div>
                     @else

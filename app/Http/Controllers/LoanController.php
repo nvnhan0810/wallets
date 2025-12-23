@@ -57,7 +57,21 @@ class LoanController extends Controller
             return $loan;
         });
 
-        return view('loans.index', compact('loans'));
+        // Tổng gốc còn lại cho các khoản vay/nợ (bank + borrow). Cho mượn (lend) bỏ qua.
+        $totalRemaining = $loans->reduce(function ($carry, $loan) {
+            if ($loan->type === 'bank') {
+                return $carry + ($loan->remaining_principal ?? 0);
+            }
+            if ($loan->type === 'borrow') {
+                return $carry + ($loan->remaining_amount ?? 0);
+            }
+            return $carry;
+        }, 0);
+
+        return view('loans.index', [
+            'loans' => $loans,
+            'totalRemaining' => $totalRemaining,
+        ]);
     }
 
     public function show(Loan $loan)
