@@ -1,0 +1,238 @@
+@extends('layouts.app')
+
+@section('content')
+@php
+    $templateData = $templates->map(fn ($t) => [
+        'id' => $t->id,
+        'name' => $t->name,
+        'type' => $t->type,
+        'amount' => (float) $t->amount,
+        'fee' => (float) ($t->fee ?? 0),
+        'category' => $t->category,
+        'description' => $t->description,
+        'default_wallet_id' => $t->default_wallet_id,
+        'from_wallet_id' => $t->from_wallet_id,
+        'to_wallet_id' => $t->to_wallet_id,
+        'adjustment_direction' => $t->adjustment_direction,
+    ])->values();
+    $initial = [
+        'template_id' => old('transaction_template_id', $selectedTemplate?->id ?? ''),
+        'wallet_id' => old('wallet_id', $prefill['wallet_id'] ?? $selectedTemplate?->default_wallet_id ?? ''),
+        'from_wallet_id' => old('from_wallet_id', $selectedTemplate?->from_wallet_id ?? ''),
+        'to_wallet_id' => old('to_wallet_id', $selectedTemplate?->to_wallet_id ?? ''),
+        'type' => old('type', $prefill['type'] ?? $selectedTemplate?->type ?? 'expense'),
+        'amount' => old('amount', $prefill['amount'] ?? $selectedTemplate?->amount ?? ''),
+        'fee' => old('fee', $selectedTemplate?->fee ?? 0),
+        'description' => old('description', $prefill['description'] ?? $selectedTemplate?->description ?? ''),
+        'category' => old('category', $selectedTemplate?->category ?? ''),
+        'adjustment_direction' => old('adjustment_direction', $selectedTemplate?->adjustment_direction ?? 'increase'),
+        'from_template' => (bool) ($selectedTemplate || old('transaction_template_id')),
+        'save_as_template' => (bool) old('save_as_template'),
+        'template_name' => old('template_name', ''),
+    ];
+@endphp
+
+<div class="max-w-2xl mx-auto" x-data="transactionForm(@js($templateData), @js($initial))">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Ghi giao dịch</h2>
+    @include('partials.flash')
+
+    <form action="{{ route('transactions.store') }}" method="POST" class="bg-white shadow rounded-lg p-6 space-y-4">
+        @csrf
+        <input type="hidden" name="transaction_template_id" :value="from_template ? template_id : ''">
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Chọn mẫu (tùy chọn)</label>
+            <select @change="applyTemplate($event.target.value)" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <option value="">— Không dùng mẫu —</option>
+                @foreach($templates as $t)
+                    <option value="{{ $t->id }}">{{ $t->name }} ({{ $t->typeLabel() }})</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Loại giao dịch</label>
+            <select name="type" x-model="type" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <option value="expense">Chi</option>
+                <option value="income">Thu</option>
+                <option value="adjustment">Cân đối</option>
+                <option value="transfer">Chuyển / Rút ví</option>
+            </select>
+        </div>
+
+        {{-- Thu / Chi --}}
+        <template x-if="type === 'income' || type === 'expense'">
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Ví</label>
+                        <select name="wallet_id" x-model="wallet_id" :required="type === 'income' || type === 'expense'" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="">Chọn ví</option>
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
+                        <input type="number" name="amount" x-model="amount" min="1" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Mô tả</label>
+                    <input type="text" name="description" x-model="description" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Danh mục</label>
+                    <input type="text" name="category" x-model="category" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                </div>
+            </div>
+        </template>
+
+        {{-- Cân đối --}}
+        <template x-if="type === 'adjustment'">
+            <div class="space-y-4 rounded-lg border border-amber-200 bg-amber-50/30 p-4">
+                <p class="text-xs text-amber-800">Điều chỉnh số dư ví cho khớp sổ sách / thực tế, không phải thu chi thật.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Ví</label>
+                        <select name="wallet_id" x-model="wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Hướng cân đối</label>
+                        <select name="adjustment_direction" x-model="adjustment_direction" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="increase">Tăng số dư</option>
+                            <option value="decrease">Giảm số dư</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Số tiền điều chỉnh (₫)</label>
+                    <input type="number" name="amount" x-model="amount" min="1" step="1" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Lý do</label>
+                    <input type="text" name="description" x-model="description" required placeholder="VD: Đối chiếu sao kê tháng 5" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                </div>
+            </div>
+        </template>
+
+        {{-- Chuyển ví --}}
+        <template x-if="type === 'transfer'">
+            <div class="space-y-4 rounded-lg border border-blue-200 bg-blue-50/30 p-4">
+                <p class="text-xs text-blue-800">Rút/chuyển từ ví nguồn sang ví đích. Phí trừ thêm ở ví nguồn.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Từ ví</label>
+                        <select name="from_wallet_id" x-model="from_wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="">Chọn ví nguồn</option>
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Đến ví</label>
+                        <select name="to_wallet_id" x-model="to_wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="">Chọn ví đích</option>
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Số tiền chuyển (₫)</label>
+                        <input type="number" name="amount" x-model="amount" min="1" step="1" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Phí (₫)</label>
+                        <input type="number" name="fee" x-model="fee" min="0" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600">Ví nguồn trừ: <span class="font-semibold" x-text="formatMoney((Number(amount)||0) + (Number(fee)||0))"></span></p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Mô tả</label>
+                    <input type="text" name="description" x-model="description" required placeholder="VD: Chuyển tiền mặt sang ngân hàng" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                </div>
+            </div>
+        </template>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Ngày giao dịch</label>
+            <input type="text" name="transacted_at" value="{{ old('transacted_at', date('d/m/Y')) }}" required class="datepicker mt-1 block w-full rounded-md border border-gray-300 p-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Ghi chú</label>
+            <textarea name="note" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2">{{ old('note') }}</textarea>
+        </div>
+
+        <div x-show="!from_template" x-cloak class="rounded-md bg-gray-50 p-4 border border-gray-200">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="save_as_template" value="1" x-model="save_as_template" class="rounded border-gray-300 text-indigo-600">
+                Lưu thành mẫu
+            </label>
+            <div x-show="save_as_template" class="mt-3">
+                <input type="text" name="template_name" x-model="template_name" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="Tên mẫu">
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Lưu</button>
+            <a href="{{ route('transactions.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Hủy</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function transactionForm(templates, initial) {
+    return {
+        templates,
+        template_id: initial.template_id || '',
+        wallet_id: String(initial.wallet_id || ''),
+        from_wallet_id: String(initial.from_wallet_id || ''),
+        to_wallet_id: String(initial.to_wallet_id || ''),
+        type: initial.type || 'expense',
+        amount: initial.amount || '',
+        fee: initial.fee || 0,
+        description: initial.description || '',
+        category: initial.category || '',
+        adjustment_direction: initial.adjustment_direction || 'increase',
+        from_template: initial.from_template || false,
+        save_as_template: initial.save_as_template || false,
+        template_name: initial.template_name || '',
+        formatMoney(n) {
+            return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫';
+        },
+        applyTemplate(id) {
+            if (!id) {
+                this.from_template = false;
+                this.template_id = '';
+                return;
+            }
+            const t = this.templates.find(x => String(x.id) === String(id));
+            if (!t) return;
+            this.from_template = true;
+            this.template_id = t.id;
+            this.type = t.type;
+            this.amount = t.amount;
+            this.fee = t.fee || 0;
+            this.description = t.description || t.name;
+            this.category = t.category || '';
+            this.adjustment_direction = t.adjustment_direction || 'increase';
+            if (t.default_wallet_id) this.wallet_id = String(t.default_wallet_id);
+            if (t.from_wallet_id) this.from_wallet_id = String(t.from_wallet_id);
+            if (t.to_wallet_id) this.to_wallet_id = String(t.to_wallet_id);
+        },
+        init() {
+            if (this.template_id) this.applyTemplate(this.template_id);
+        }
+    };
+}
+</script>
+@endsection

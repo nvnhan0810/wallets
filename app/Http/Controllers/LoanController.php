@@ -2,31 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Loan;
-use App\Models\Payment;
+use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Holiday;
+use App\Models\Loan;
 use App\Models\LoanCustomSchedule;
-use Illuminate\Http\Request;
+use App\Models\Payment;
+use App\Models\Wallet;
+use App\Services\LoanWalletService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LoanController extends Controller
 {
+    use ConvertsVietnameseDates;
+
+    public function __construct(private LoanWalletService $loanWallet) {}
+
     public function index()
     {
-        $loans = Loan::with('payments')->where('is_settled', false)->get();
+        $loans = Loan::with(['payments', 'wallet'])->where('is_settled', false)->get();
 
         $loans->transform(function ($loan) {
             $totalPaid = $loan->payments->sum('amount');
 
             if ($loan->type === 'bank') {
-                // Calculate amortization status
                 $schedule = $this->calculateAmortization(
                     $loan->id,
                     $loan->principal_amount,
                     $loan->interest_rate,
                     $loan->term_months,
                     $loan->started_at,
-                    $loan->monthly_payment, // Pass the fixed monthly payment
+                    $loan->monthly_payment,
                     $loan->interest_calculation_method ?? 'monthly'
                 );
 
@@ -35,12 +42,11 @@ class LoanController extends Controller
                     $loan->remaining_principal = $loan->principal_amount;
                     $loan->remaining_interest = 0;
                 } else {
-                    // Find current state based on months passed
                     $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
                     $maxIndex = $schedule->max('month_index');
                     $monthsPassed = min($monthsPassed, $maxIndex - 1);
 
-                    $currentStatus = $schedule->first(function($item) use ($monthsPassed) {
+                    $currentStatus = $schedule->first(function ($item) use ($monthsPassed) {
                         return $item['month_index'] > $monthsPassed;
                     }) ?? $schedule->last();
 
@@ -48,16 +54,17 @@ class LoanController extends Controller
                     $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
                     $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
                 }
-
             } else {
-                // Simple debt/lend
                 $loan->remaining_amount = $loan->principal_amount - $totalPaid;
             }
+
+            $loan->payoff_remaining = $loan->type === 'bank'
+                ? ($loan->remaining_principal ?? 0)
+                : ($loan->remaining_amount ?? 0);
 
             return $loan;
         });
 
-        // Tổng gốc còn lại cho các khoản vay/nợ (bank + borrow). Cho mượn (lend) bỏ qua.
         $totalRemaining = $loans->reduce(function ($carry, $loan) {
             if ($loan->type === 'bank') {
                 return $carry + ($loan->remaining_principal ?? 0);
@@ -65,27 +72,28 @@ class LoanController extends Controller
             if ($loan->type === 'borrow') {
                 return $carry + ($loan->remaining_amount ?? 0);
             }
+
             return $carry;
         }, 0);
 
-        // Tổng đang cho mượn (lend) sau khi trừ phần đã nhận
         $totalLendRemaining = $loans->reduce(function ($carry, $loan) {
             if ($loan->type === 'lend') {
                 $paid = $loan->payments->sum('amount');
+
                 return $carry + max(($loan->principal_amount - $paid), 0);
             }
+
             return $carry;
         }, 0);
 
-        return view('loans.index', [
-            'loans' => $loans,
-            'totalRemaining' => $totalRemaining,
-            'totalLendRemaining' => $totalLendRemaining,
-        ]);
+        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
+
+        return view('loans.index', compact('loans', 'totalRemaining', 'totalLendRemaining', 'wallets'));
     }
 
     public function show(Loan $loan)
     {
+        $loan->load(['payments.transaction', 'wallet']);
         $schedule = collect([]);
         $monthsPassed = 0;
 
@@ -96,7 +104,7 @@ class LoanController extends Controller
                 $loan->interest_rate,
                 $loan->term_months,
                 $loan->started_at,
-                $loan->monthly_payment, // Pass the fixed monthly payment
+                $loan->monthly_payment,
                 $loan->interest_calculation_method ?? 'monthly'
             );
 
@@ -105,7 +113,7 @@ class LoanController extends Controller
                 $maxIndex = $schedule->max('month_index');
                 $monthsPassed = min($monthsPassed, $maxIndex - 1);
 
-                $currentStatus = $schedule->first(function($item) use ($monthsPassed) {
+                $currentStatus = $schedule->first(function ($item) use ($monthsPassed) {
                     return $item['month_index'] > $monthsPassed;
                 }) ?? $schedule->last();
 
@@ -113,7 +121,6 @@ class LoanController extends Controller
                 $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
                 $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
             } else {
-                $monthsPassed = 0;
                 $loan->remaining_months = $loan->term_months;
                 $loan->remaining_principal = $loan->principal_amount;
                 $loan->remaining_interest = 0;
@@ -125,7 +132,9 @@ class LoanController extends Controller
 
     public function create()
     {
-        return view('loans.create');
+        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
+
+        return view('loans.create', compact('wallets'));
     }
 
     public function store(Request $request)
@@ -135,7 +144,8 @@ class LoanController extends Controller
             'name' => 'required|string',
             'principal_amount' => 'required|numeric',
             'started_at' => 'required|string',
-            // Optional fields depending on type
+            'wallet_id' => 'nullable|exists:wallets,id',
+            'record_cash_flow' => 'sometimes|boolean',
             'interest_rate' => 'nullable|numeric',
             'interest_calculation_method' => 'nullable|in:monthly,daily,custom',
             'term_months' => 'nullable|integer',
@@ -144,14 +154,15 @@ class LoanController extends Controller
             'custom_schedule' => 'sometimes|array',
         ]);
 
-        // Convert date format from dd/mm/yyyy to yyyy-mm-dd
-        $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
+        if ($request->boolean('record_cash_flow')) {
+            $request->validate(['wallet_id' => 'required|exists:wallets,id']);
+        }
 
+        $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
         $validated['months_paid'] = $validated['months_paid'] ?? 0;
         $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
 
         if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
-            // monthly_payment required for custom
             $request->validate([
                 'monthly_payment' => 'required|numeric|min:1',
                 'term_months' => 'required|integer|min:1',
@@ -159,16 +170,28 @@ class LoanController extends Controller
             ]);
         }
 
-        $loan = Loan::create($validated);
+        $loan = DB::transaction(function () use ($request, $validated) {
+            $loan = Loan::create(collect($validated)->only([
+                'type', 'name', 'principal_amount', 'started_at', 'wallet_id',
+                'interest_rate', 'interest_calculation_method', 'term_months',
+                'months_paid', 'monthly_payment',
+            ])->filter(fn ($v) => $v !== null)->all());
 
-        // Save custom schedules if provided
+            if ($request->boolean('record_cash_flow') && $validated['wallet_id']) {
+                $wallet = Wallet::query()->findOrFail($validated['wallet_id']);
+                $this->loanWallet->recordCreation($loan, $wallet);
+            }
+
+            return $loan;
+        });
+
         if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
             $customRows = $request->input('custom_schedule', []);
             $monthlyPayment = (float) $validated['monthly_payment'];
             $errors = [];
             foreach ($customRows as $idx => $row) {
-                if (!isset($row['payment'], $row['principal'], $row['interest'])) {
-                    $errors[] = "Dòng " . ($idx + 1) . " thiếu dữ liệu.";
+                if (! isset($row['payment'], $row['principal'], $row['interest'])) {
+                    $errors[] = 'Dòng '.($idx + 1).' thiếu dữ liệu.';
                     continue;
                 }
                 $payment = (float) $row['payment'];
@@ -177,11 +200,11 @@ class LoanController extends Controller
                 $fee = (float) ($row['fee'] ?? 0);
 
                 if (round($principal + $interest + $fee, 0) !== round($payment, 0)) {
-                    $errors[] = "Dòng " . ($idx + 1) . ": Gốc + Lãi + Phí phải bằng Tổng trả.";
+                    $errors[] = 'Dòng '.($idx + 1).': Gốc + Lãi + Phí phải bằng Tổng trả.';
                     continue;
                 }
                 if (round($payment, 0) > round($monthlyPayment, 0)) {
-                    $errors[] = "Dòng " . ($idx + 1) . ": Tổng trả vượt số tiền hàng tháng.";
+                    $errors[] = 'Dòng '.($idx + 1).': Tổng trả vượt số tiền hàng tháng.';
                     continue;
                 }
 
@@ -197,52 +220,101 @@ class LoanController extends Controller
                     'note' => $row['note'] ?? null,
                 ]);
             }
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 return back()->withErrors($errors)->withInput();
             }
         }
 
-        return redirect()->route('dashboard');
+        return redirect()->route('loans.index')->with('success', 'Đã tạo khoản vay và ghi nhận dòng tiền vào ví.');
     }
 
     public function storePayment(Request $request)
     {
         $validated = $request->validate([
             'loan_id' => 'required|exists:loans,id',
-            'amount' => 'required|numeric',
+            'wallet_id' => 'required|exists:wallets,id',
+            'amount' => 'required|numeric|min:0.01',
             'paid_at' => 'required|string',
+            'note' => 'nullable|string|max:255',
         ]);
 
-        // Convert date format from dd/mm/yyyy to yyyy-mm-dd
         $validated['paid_at'] = $this->convertDateFormat($validated['paid_at']);
 
-        Payment::create($validated);
+        DB::transaction(function () use ($validated) {
+            $loan = Loan::query()->findOrFail($validated['loan_id']);
+            $wallet = Wallet::query()->findOrFail($validated['wallet_id']);
 
-        return redirect()->route('dashboard');
+            $payment = Payment::create([
+                'loan_id' => $validated['loan_id'],
+                'amount' => $validated['amount'],
+                'paid_at' => $validated['paid_at'],
+                'note' => $validated['note'] ?? null,
+            ]);
+
+            $this->loanWallet->recordPayment($loan, $payment, $wallet);
+
+            if (! $loan->wallet_id) {
+                $loan->update(['wallet_id' => $wallet->id]);
+            }
+        });
+
+        return redirect()->route('loans.index')->with('success', 'Đã ghi thanh toán và cập nhật ví.');
     }
 
-    public function settle(Loan $loan)
+    public function settle(Request $request, Loan $loan)
     {
-        $loan->update(['is_settled' => true]);
-        return redirect()->route('dashboard');
+        $loan->load('payments');
+
+        $validated = $request->validate([
+            'wallet_id' => 'required|exists:wallets,id',
+            'amount' => 'nullable|numeric|min:0',
+            'paid_at' => 'nullable|string',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $remainingPrincipal = $request->input('remaining_principal');
+
+        DB::transaction(function () use ($loan, $validated, $remainingPrincipal) {
+            $amount = $validated['amount'] ?? $this->loanWallet->remainingPayoff(
+                $loan,
+                $remainingPrincipal !== null ? (float) $remainingPrincipal : null
+            );
+
+            if ($amount > 0) {
+                $paidAt = isset($validated['paid_at'])
+                    ? $this->convertDateFormat($validated['paid_at'])
+                    : now()->format('Y-m-d');
+
+                $wallet = Wallet::query()->findOrFail($validated['wallet_id']);
+
+                $payment = Payment::create([
+                    'loan_id' => $loan->id,
+                    'amount' => $amount,
+                    'paid_at' => $paidAt,
+                    'note' => $validated['note'] ?? 'Tất toán',
+                ]);
+
+                $this->loanWallet->recordPayment($loan, $payment, $wallet);
+
+                if (! $loan->wallet_id) {
+                    $loan->update(['wallet_id' => $wallet->id]);
+                }
+            }
+
+            $loan->update(['is_settled' => true]);
+        });
+
+        return redirect()->route('loans.index')->with('success', 'Đã tất toán và cập nhật ví.');
     }
 
-    /**
-     * Helper to calculate amortization schedule
-     */
     private function calculateAmortization($loanId, $principal, $annualRate, $months, $startDate, $fixedMonthlyPayment = null, $method = 'monthly')
     {
-        // $annualRate is in percent (e.g. 15.8)
         $balance = $principal;
-
         $schedule = collect([]);
         $prevDate = Carbon::parse($startDate);
 
-        // Custom method: return schedules from stored custom rows
         if ($method === 'custom') {
-            $rows = LoanCustomSchedule::where('loan_id', $loanId)
-                ->orderBy('month_index')
-                ->get();
+            $rows = LoanCustomSchedule::where('loan_id', $loanId)->orderBy('month_index')->get();
             if ($rows->isEmpty()) {
                 return $schedule;
             }
@@ -255,7 +327,6 @@ class LoanController extends Controller
                 $interest = (float) $row->interest;
                 $fee = (float) ($row->fee ?? 0);
                 $payment = $row->payment ?? ($principalPayment + $interest + $fee);
-
                 $balance = max($balance - $principalPayment, 0);
 
                 $result[] = [
@@ -275,88 +346,54 @@ class LoanController extends Controller
             return collect($result);
         }
 
-        // Custom method: return schedules from stored custom rows
-        if ($method === 'custom') {
-            $rows = LoanCustomSchedule::where('loan_id', $loanId)
-                ->orderBy('month_index')
-                ->get();
-            if ($rows->isEmpty()) {
-                return $schedule;
-            }
-            return $rows->map(function ($row) {
-                return [
-                    'month_index' => $row->month_index,
-                    'date' => $row->paid_at ?? Carbon::now(),
-                    'theoretical_date' => $row->paid_at ?? Carbon::now(),
-                    'is_adjusted' => false,
-                    'days' => null,
-                    'payment' => $row->payment,
-                    'interest' => $row->interest,
-                    'principal' => $row->principal,
-                    'remaining_principal' => $row->remaining_principal,
-                ];
-            });
-        }
-
-        // If fixed monthly payment is not provided, calculate standard annuity
-        if (!$fixedMonthlyPayment) {
+        if (! $fixedMonthlyPayment) {
             $monthlyRate = ($annualRate / 100) / 12;
             $fixedMonthlyPayment = ($principal * $monthlyRate) / (1 - pow(1 + $monthlyRate, -$months));
         }
 
         for ($i = 1; $i <= $months; $i++) {
-            // Calculate theoretical payment date (same day each month)
             $theoreticalDate = Carbon::parse($startDate)->addMonths($i);
+            $actualDate = $method === 'daily'
+                ? $this->adjustForNonWorkingDays($theoreticalDate)
+                : $theoreticalDate->copy();
 
-            // For daily method, adjust if it falls on weekend or holiday
             if ($method === 'daily') {
-                $actualDate = $this->adjustForNonWorkingDays($theoreticalDate);
-            } else {
-                $actualDate = $theoreticalDate->copy();
-            }
-
-            // Calculate interest based on method
-            if ($method === 'daily') {
-                // Actual/365: Calculate based on actual days between payments
                 $days = $prevDate->diffInDays($actualDate);
                 $interest = round($balance * ($annualRate / 100) * $days / 365, 0);
             } else {
-                // Monthly: Fixed monthly rate
                 $monthlyRate = ($annualRate / 100) / 12;
                 $interest = round($balance * $monthlyRate, 0);
-                $days = $prevDate->diffInDays($actualDate); // Just for display
+                $days = $prevDate->diffInDays($actualDate);
             }
 
             $payment = round($fixedMonthlyPayment, 0);
 
-            // Handle last month - pay off remaining balance
-            if ($i == $months) {
-                if ($balance + $interest < $payment + 100000) { // Tolerance
-                     $payment = $balance + $interest;
-                }
+            if ($i == $months && $balance + $interest < $payment + 100000) {
+                $payment = $balance + $interest;
             }
 
             $principalPayment = round($payment - $interest, 0);
 
-            // Prevent negative balance
             if ($principalPayment > $balance) {
                 $principalPayment = $balance;
                 $payment = $interest + $principalPayment;
             }
 
             $balance = round($balance - $principalPayment, 0);
-            if ($balance < 0) $balance = 0;
+            if ($balance < 0) {
+                $balance = 0;
+            }
 
             $schedule->push([
                 'month_index' => $i,
                 'date' => $actualDate->copy(),
                 'theoretical_date' => $theoreticalDate->copy(),
-                'is_adjusted' => !$theoreticalDate->isSameDay($actualDate),
+                'is_adjusted' => ! $theoreticalDate->isSameDay($actualDate),
                 'days' => $days,
                 'payment' => $payment,
                 'interest' => $interest,
                 'principal' => $principalPayment,
-                'remaining_principal' => $balance
+                'remaining_principal' => $balance,
             ]);
 
             $prevDate = $actualDate;
@@ -365,69 +402,30 @@ class LoanController extends Controller
         return $schedule;
     }
 
-    /**
-     * Adjust date if it falls on weekend or holiday - move to next working day
-     */
     private function adjustForNonWorkingDays($date)
     {
-        // Cache holidays for better performance
         static $holidays = null;
         if ($holidays === null) {
-            $holidays = Holiday::pluck('date')->map(function($d) {
-                return $d->format('Y-m-d');
-            })->toArray();
+            $holidays = Holiday::pluck('date')->map(fn ($d) => $d->format('Y-m-d'))->toArray();
         }
 
         $adjustedDate = $date->copy();
-        $maxIterations = 10; // Prevent infinite loop
         $iterations = 0;
 
-        while ($iterations < $maxIterations) {
+        while ($iterations < 10) {
             $dayOfWeek = $adjustedDate->dayOfWeek;
             $dateString = $adjustedDate->format('Y-m-d');
 
-            // Check if weekend
-            if ($dayOfWeek == Carbon::SATURDAY || $dayOfWeek == Carbon::SUNDAY) {
+            if ($dayOfWeek == Carbon::SATURDAY || $dayOfWeek == Carbon::SUNDAY || in_array($dateString, $holidays)) {
                 $adjustedDate->addDay();
                 $iterations++;
+
                 continue;
             }
 
-            // Check if holiday
-            if (in_array($dateString, $holidays)) {
-                $adjustedDate->addDay();
-                $iterations++;
-                continue;
-            }
-
-            // It's a working day
             break;
         }
 
         return $adjustedDate;
     }
-
-    /**
-     * Convert date format from dd/mm/yyyy to yyyy-mm-dd
-     */
-    private function convertDateFormat($date)
-    {
-        // If already in yyyy-mm-dd format, return as is
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        // Convert from dd/mm/yyyy to yyyy-mm-dd
-        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $matches)) {
-            return $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-        }
-
-        // If format is unrecognized, try to parse with Carbon
-        try {
-            return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return $date;
-        }
-    }
 }
-

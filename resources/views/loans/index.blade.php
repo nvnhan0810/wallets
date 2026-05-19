@@ -1,24 +1,46 @@
 @extends('layouts.app')
 
 @section('content')
+@include('partials.flash')
 <div x-data="{
     paymentModalOpen: false,
+    settleModalOpen: false,
     selectedLoan: null,
     paymentAmount: '',
     paymentDate: '{{ date('d/m/Y') }}',
     paymentNote: '',
+    walletId: '{{ $wallets->first()?->id }}',
     openPaymentModal(loan) {
         this.selectedLoan = loan;
-        this.paymentAmount = loan.monthly_payment ? loan.monthly_payment : '';
+        this.paymentAmount = loan.monthly_payment || loan.payoff_remaining || '';
         this.paymentNote = loan.monthly_payment ? 'Thanh toán định kỳ' : 'Thanh toán nợ';
+        this.walletId = loan.wallet_id ? String(loan.wallet_id) : this.walletId;
         this.paymentModalOpen = true;
+    },
+    openSettleModal(loan) {
+        this.selectedLoan = loan;
+        this.paymentAmount = loan.payoff_remaining || '';
+        this.paymentNote = 'Tất toán';
+        this.walletId = loan.wallet_id ? String(loan.wallet_id) : this.walletId;
+        this.settleModalOpen = true;
+    },
+    cashFlowHint(type, action) {
+        if (action === 'create') {
+            if (type === 'lend') return 'Chi từ ví (tiền cho mượn đi)';
+            return 'Thu vào ví (nhận tiền vay/mượn)';
+        }
+        if (action === 'payment') {
+            if (type === 'lend') return 'Thu vào ví (thu hồi cho mượn)';
+            return 'Chi từ ví (trả nợ/vay)';
+        }
+        return '';
     }
 }">
 
     <div class="md:flex md:items-center md:justify-between mb-6">
         <div class="flex-1 min-w-0">
             <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                Dashboard Tài chính
+                Khoản vay & Nợ
             </h2>
         </div>
     </div>
@@ -120,19 +142,16 @@
                 </div>
 
                 <div class="px-4 py-4 sm:px-6 bg-gray-50 flex justify-between items-center">
-                    <button
-                        @click="openPaymentModal({{ $loan }})"
-                        class="text-indigo-600 hover:text-indigo-900 font-medium text-sm">
-                        Thanh toán
-                    </button>
-
-                    <form action="{{ route('loans.settle', $loan->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn tất toán khoản này không?');">
-                        @csrf
-                        <button type="submit" class="text-gray-400 hover:text-green-600 text-sm">
-                            Tất toán
-                        </button>
-                    </form>
+                    <button type="button"
+                        @click='openPaymentModal(@json(["id" => $loan->id, "name" => $loan->name, "type" => $loan->type, "monthly_payment" => $loan->monthly_payment, "wallet_id" => $loan->wallet_id, "payoff_remaining" => $loan->payoff_remaining ?? 0]))'
+                        class="text-indigo-600 hover:text-indigo-900 font-medium text-sm">Thanh toán</button>
+                    <button type="button"
+                        @click='openSettleModal(@json(["id" => $loan->id, "name" => $loan->name, "type" => $loan->type, "wallet_id" => $loan->wallet_id, "payoff_remaining" => $loan->payoff_remaining ?? 0, "remaining_principal" => $loan->remaining_principal ?? null]))'
+                        class="text-gray-500 hover:text-green-600 text-sm">Tất toán</button>
                 </div>
+                @if($loan->wallet)
+                    <p class="px-4 pb-3 text-xs text-gray-400">Ví: {{ $loan->wallet->name }}</p>
+                @endif
             </div>
         @empty
             <div class="col-span-3 text-center py-12">
@@ -155,7 +174,7 @@
 
     <!-- Payment Modal -->
     <div x-show="paymentModalOpen" x-cloak class="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-24 text-center sm:block sm:p-0">
             <div x-show="paymentModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
@@ -171,6 +190,15 @@
                                     Thanh toán cho: <span x-text="selectedLoan?.name"></span>
                                 </h3>
                                 <div class="mt-4 space-y-4">
+                                    <p class="text-xs text-indigo-600 bg-indigo-50 rounded-md p-2" x-show="selectedLoan" x-text="selectedLoan ? cashFlowHint(selectedLoan.type, 'payment') : ''"></p>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ví</label>
+                                        <select name="wallet_id" x-model="walletId" required class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
+                                            @foreach($wallets as $w)
+                                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                     <div>
                                         <label for="amount" class="block text-sm font-medium text-gray-700">Số tiền</label>
                                         <div class="mt-1 relative rounded-md shadow-sm">
@@ -199,6 +227,49 @@
                         <button type="button" @click="paymentModalOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                             Hủy
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="settleModalOpen" x-cloak class="fixed z-[60] inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen px-4 pb-24 pt-4">
+            <div x-show="settleModalOpen" @click="settleModalOpen = false" class="fixed inset-0 bg-gray-500/75"></div>
+            <div x-show="settleModalOpen" class="relative bg-white rounded-lg shadow-xl w-full max-w-lg">
+                <form :action="'/loans/' + (selectedLoan?.id || '') + '/settle'" method="POST">
+                    @csrf
+                    <input type="hidden" name="remaining_principal" :value="selectedLoan?.remaining_principal ?? ''">
+                    <div class="p-6 space-y-4">
+                        <h3 class="text-lg font-medium">Tất toán: <span x-text="selectedLoan?.name"></span></h3>
+                        <p class="text-xs text-gray-500">Ghi nốt số còn lại vào ví (để 0 nếu đã trả hết).</p>
+                        <p class="text-xs text-green-700 bg-green-50 p-2 rounded" x-show="selectedLoan" x-text="selectedLoan ? cashFlowHint(selectedLoan.type, 'payment') : ''"></p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Ví</label>
+                            <select name="wallet_id" x-model="walletId" required class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm">
+                                @forelse($wallets as $w)
+                                    <option value="{{ $w->id }}">{{ $w->name }}</option>
+                                @empty
+                                    <option value="">Chưa có ví</option>
+                                @endforelse
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
+                            <input type="number" name="amount" x-model="paymentAmount" min="0" step="1" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Ngày</label>
+                            <input type="text" name="paid_at" x-model="paymentDate" class="datepicker mt-1 w-full rounded-md border border-gray-300 p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Ghi chú</label>
+                            <input type="text" name="note" x-model="paymentNote" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 flex gap-2 justify-end">
+                        <button type="button" @click="settleModalOpen = false" class="px-4 py-2 border rounded-md text-sm">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium">Tất toán</button>
                     </div>
                 </form>
             </div>

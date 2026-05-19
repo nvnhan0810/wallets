@@ -12,6 +12,7 @@ class Payment extends Model
         'amount',
         'paid_at',
         'note',
+        'transaction_id',
     ];
 
     protected $casts = [
@@ -22,6 +23,11 @@ class Payment extends Model
     public function loan(): BelongsTo
     {
         return $this->belongsTo(Loan::class);
+    }
+
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class);
     }
 }
 

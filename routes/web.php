@@ -1,17 +1,43 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\LoanController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\LoanController;
+use App\Http\Controllers\RecurringItemController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TransactionTemplateController;
+use App\Http\Controllers\WalletController;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/', [LoanController::class, 'index'])->name('dashboard');
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
 Route::get('/loans/create', [LoanController::class, 'create'])->name('loans.create');
 Route::post('/loans', [LoanController::class, 'store'])->name('loans.store');
 Route::get('/loans/{loan}', [LoanController::class, 'show'])->name('loans.show');
 Route::post('/payments', [LoanController::class, 'storePayment'])->name('payments.store');
 Route::post('/loans/{loan}/settle', [LoanController::class, 'settle'])->name('loans.settle');
 
-// Holidays management
+Route::resource('wallets', WalletController::class)->except(['show']);
+
+Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
+Route::get('/transactions/create', [TransactionController::class, 'create'])->name('transactions.create');
+Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
+Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+
+Route::get('/recurring-items', [RecurringItemController::class, 'index'])->name('recurring-items.index');
+Route::post('/recurring-items', [RecurringItemController::class, 'store'])->name('recurring-items.store');
+Route::put('/recurring-items/{recurringItem}', [RecurringItemController::class, 'update'])->name('recurring-items.update');
+Route::delete('/recurring-items/{recurringItem}', [RecurringItemController::class, 'destroy'])->name('recurring-items.destroy');
+
+Route::get('/transaction-templates', [TransactionTemplateController::class, 'index'])->name('transaction-templates.index');
+Route::post('/transaction-templates', [TransactionTemplateController::class, 'store'])->name('transaction-templates.store');
+Route::delete('/transaction-templates/{transactionTemplate}', [TransactionTemplateController::class, 'destroy'])->name('transaction-templates.destroy');
+
+Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
 Route::get('/holidays', [HolidayController::class, 'index'])->name('holidays.index');
 Route::post('/holidays', [HolidayController::class, 'store'])->name('holidays.store');
 Route::delete('/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');

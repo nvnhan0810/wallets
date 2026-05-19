@@ -50,6 +50,28 @@
                             </div>
                         </div>
 
+                                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3" x-data="{ recordCashFlow: true }">
+                            <p class="text-sm font-medium text-indigo-900">Dòng tiền qua ví</p>
+                            <p class="text-xs text-indigo-700" x-show="type === 'lend'">Cho mượn → chi tiền từ ví.</p>
+                            <p class="text-xs text-indigo-700" x-show="type !== 'lend'">Vay / mượn → thu tiền vào ví.</p>
+                            <label class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" name="record_cash_flow" value="1" x-model="recordCashFlow" checked class="rounded text-indigo-600">
+                                Ghi nhận giao dịch vào ví khi tạo
+                            </label>
+                            <div x-show="recordCashFlow">
+                                <label for="wallet_id" class="block text-sm font-medium text-gray-700">Ví</label>
+                                <select name="wallet_id" id="wallet_id" :required="recordCashFlow" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
+                                    <option value="">Chọn ví</option>
+                                    @foreach($wallets as $w)
+                                        <option value="{{ $w->id }}" @selected(old('wallet_id') == $w->id)>{{ $w->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if($wallets->isEmpty())
+                                    <p class="mt-1 text-xs text-red-600"><a href="{{ route('wallets.create') }}" class="underline">Tạo ví</a> trước.</p>
+                                @endif
+                            </div>
+                        </div>
+
                         <!-- Bank Specific Fields -->
                         <div x-show="type === 'bank'" class="border-t border-gray-200 pt-4 mt-4 grid grid-cols-6 gap-6">
                             <div class="col-span-6 sm:col-span-2">

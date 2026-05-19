@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+@include('partials.flash')
 <div class="mb-6">
     <h2 class="text-2xl font-bold text-gray-900">Quản lý Ngày Lễ</h2>
     <p class="mt-1 text-sm text-gray-600">Thêm các ngày lễ, nghỉ để tính toán chính xác ngày trả nợ.</p>

@@ -11,7 +11,7 @@
                 Thông tin chi tiết và lịch trả nợ.
             </p>
         </div>
-        <a href="{{ route('dashboard') }}" class="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+        <a href="{{ route('loans.index') }}" class="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
             &larr; Quay lại Dashboard
         </a>
     </div>
@@ -31,6 +31,12 @@
                 <dt class="text-sm font-medium text-gray-500">Ngày bắt đầu</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ $loan->started_at->format('d/m/Y') }}</dd>
             </div>
+            @if($loan->wallet)
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Ví liên kết</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ $loan->wallet->name }}</dd>
+            </div>
+            @endif
             @if($loan->type == 'bank')
             <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt class="text-sm font-medium text-gray-500">Lãi suất</dt>
@@ -180,6 +186,9 @@
                     <div class="sm:flex">
                         <p class="flex items-center text-sm text-gray-500">
                             {{ $payment->note ?? 'Không có ghi chú' }}
+                            @if($payment->transaction)
+                                · <a href="{{ route('transactions.index', ['wallet_id' => $payment->transaction->wallet_id]) }}" class="text-indigo-600 hover:underline">Xem trên ví</a>
+                            @endif
                         </p>
                     </div>
                 </div>

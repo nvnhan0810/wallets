@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Loan extends Model
@@ -18,6 +19,7 @@ class Loan extends Model
         'monthly_payment',
         'started_at',
         'is_settled',
+        'wallet_id',
     ];
 
     protected $casts = [
@@ -26,6 +28,11 @@ class Loan extends Model
         'principal_amount' => 'decimal:2',
         'monthly_payment' => 'decimal:2',
     ];
+
+    public function wallet(): BelongsTo
+    {
+        return $this->belongsTo(Wallet::class);
+    }
 
     public function payments(): HasMany
     {
