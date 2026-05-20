@@ -74,6 +74,24 @@
     <!-- Grid -->
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         @forelse($loans as $loan)
+            @php
+                $loanForPayment = [
+                    'id' => $loan->id,
+                    'name' => $loan->name,
+                    'type' => $loan->type,
+                    'monthly_payment' => $loan->monthly_payment,
+                    'wallet_id' => $loan->wallet_id,
+                    'payoff_remaining' => $loan->payoff_remaining ?? 0,
+                ];
+                $loanForSettle = [
+                    'id' => $loan->id,
+                    'name' => $loan->name,
+                    'type' => $loan->type,
+                    'wallet_id' => $loan->wallet_id,
+                    'payoff_remaining' => $loan->payoff_remaining ?? 0,
+                    'remaining_principal' => $loan->remaining_principal ?? null,
+                ];
+            @endphp
             <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200 border-l-4 {{ $loan->type == 'lend' ? 'border-green-500' : ($loan->type == 'bank' ? 'border-red-500' : 'border-orange-500') }}">
                 <div class="px-4 py-5 sm:px-6 flex justify-between items-start">
                     <div>
@@ -143,10 +161,10 @@
 
                 <div class="px-4 py-4 sm:px-6 bg-gray-50 flex justify-between items-center">
                     <button type="button"
-                        @click='openPaymentModal(@json(["id" => $loan->id, "name" => $loan->name, "type" => $loan->type, "monthly_payment" => $loan->monthly_payment, "wallet_id" => $loan->wallet_id, "payoff_remaining" => $loan->payoff_remaining ?? 0]))'
+                        @click="openPaymentModal(@js($loanForPayment))"
                         class="text-indigo-600 hover:text-indigo-900 font-medium text-sm">Thanh toán</button>
                     <button type="button"
-                        @click='openSettleModal(@json(["id" => $loan->id, "name" => $loan->name, "type" => $loan->type, "wallet_id" => $loan->wallet_id, "payoff_remaining" => $loan->payoff_remaining ?? 0, "remaining_principal" => $loan->remaining_principal ?? null]))'
+                        @click="openSettleModal(@js($loanForSettle))"
                         class="text-gray-500 hover:text-green-600 text-sm">Tất toán</button>
                 </div>
                 @if($loan->wallet)
