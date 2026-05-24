@@ -5,16 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Loan;
 use App\Models\Setting;
 use App\Models\Wallet;
+use App\Services\LoanPaymentReminderService;
 use App\Services\RecurringItemService;
 
 class DashboardController extends Controller
 {
-    public function __construct(private RecurringItemService $recurringService) {}
+    public function __construct(
+        private RecurringItemService $recurringService,
+        private LoanPaymentReminderService $loanReminders,
+    ) {}
 
     public function index()
     {
         $alertDays = Setting::recurringAlertDays();
         $upcomingRecurring = $this->recurringService->upcoming($alertDays);
+        $upcomingLoanPayments = $this->loanReminders->upcomingLoanPayments($alertDays);
 
         $wallets = Wallet::query()
             ->where('is_active', true)
@@ -35,6 +40,7 @@ class DashboardController extends Controller
         return view('dashboard.index', compact(
             'alertDays',
             'upcomingRecurring',
+            'upcomingLoanPayments',
             'wallets',
             'totalWalletBalance',
             'recentTransactions',

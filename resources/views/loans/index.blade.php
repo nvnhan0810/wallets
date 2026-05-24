@@ -208,6 +208,9 @@
                                     Thanh toán cho: <span x-text="selectedLoan?.name"></span>
                                 </h3>
                                 <div class="mt-4 space-y-4">
+                                    <p class="text-xs text-amber-700 bg-amber-50 rounded-md p-2" x-show="selectedLoan?.type === 'bank'">
+                                        TT trước ngày cố định → không trừ gốc (hiện trên lịch kỳ). Từ 06/2026 chỉ TT đúng/sau ngày kỳ mới trừ gốc.
+                                    </p>
                                     <p class="text-xs text-indigo-600 bg-indigo-50 rounded-md p-2" x-show="selectedLoan" x-text="selectedLoan ? cashFlowHint(selectedLoan.type, 'payment') : ''"></p>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700">Ví</label>

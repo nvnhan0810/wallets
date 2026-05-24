@@ -17,9 +17,11 @@ class Loan extends Model
         'term_months',
         'months_paid',
         'monthly_payment',
+        'payment_day',
         'started_at',
         'is_settled',
         'wallet_id',
+        'recurring_item_id',
     ];
 
     protected $casts = [
@@ -42,6 +44,16 @@ class Loan extends Model
     public function customSchedules(): HasMany
     {
         return $this->hasMany(LoanCustomSchedule::class);
+    }
+
+    public function recurringItem(): BelongsTo
+    {
+        return $this->belongsTo(RecurringItem::class);
+    }
+
+    public function isBankLoan(): bool
+    {
+        return $this->type === 'bank';
     }
 }
 

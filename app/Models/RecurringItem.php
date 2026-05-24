@@ -19,6 +19,7 @@ class RecurringItem extends Model
         'type',
         'amount',
         'wallet_id',
+        'loan_id',
         'day_of_month',
         'is_active',
         'note',
@@ -32,6 +33,11 @@ class RecurringItem extends Model
     public function wallet(): BelongsTo
     {
         return $this->belongsTo(Wallet::class);
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
     }
 
     public function scopeActive(Builder $query): Builder

@@ -112,6 +112,19 @@
                                 <p class="text-xs text-gray-500" x-show="calculationMethod === 'custom'">* Mỗi kỳ: Phí = Tổng trả - Gốc - Lãi (không âm).</p>
                             </div>
 
+                            <div class="col-span-6 sm:col-span-2">
+                                <label for="payment_day" class="block text-sm font-medium text-gray-700">Ngày thanh toán cố định (tháng)</label>
+                                <input type="number" name="payment_day" id="payment_day" min="1" max="31" value="{{ old('payment_day', 25) }}" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="VD: 25">
+                                <p class="text-xs text-gray-500 mt-1">Thanh toán trước ngày này không trừ gốc. Từ 06/2026 chỉ TT đúng kỳ mới trừ gốc.</p>
+                            </div>
+
+                            <div class="col-span-6">
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="link_recurring" value="1" checked class="rounded border-gray-300 text-indigo-600">
+                                    Tạo khoản <strong>chi cố định</strong> gắn với khoản vay (nhắc dashboard)
+                                </label>
+                            </div>
+
                             <!-- Custom schedule input -->
                             <div class="col-span-6" x-show="calculationMethod === 'custom'">
                                 <div class="flex items-center justify-between mb-2">

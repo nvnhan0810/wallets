@@ -8,6 +8,7 @@ use App\Models\Loan;
 use App\Models\LoanCustomSchedule;
 use App\Models\Payment;
 use App\Models\Wallet;
+use App\Services\LoanPaymentScheduleService;
 use App\Services\LoanWalletService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,11 +18,14 @@ class LoanController extends Controller
 {
     use ConvertsVietnameseDates;
 
-    public function __construct(private LoanWalletService $loanWallet) {}
+    public function __construct(
+        private LoanWalletService $loanWallet,
+        private LoanPaymentScheduleService $paymentSchedule,
+    ) {}
 
     public function index()
     {
-        $loans = Loan::with(['payments', 'wallet'])->where('is_settled', false)->get();
+        $loans = Loan::with(['payments', 'wallet', 'recurringItem'])->where('is_settled', false)->get();
 
         $loans->transform(function ($loan) {
             $totalPaid = $loan->payments->sum('amount');
@@ -42,16 +46,11 @@ class LoanController extends Controller
                     $loan->remaining_principal = $loan->principal_amount;
                     $loan->remaining_interest = 0;
                 } else {
-                    $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+                    $monthsPassed = $this->paymentSchedule->effectiveMonthsPaid($loan, $schedule, $loan->payments);
                     $maxIndex = $schedule->max('month_index');
-                    $monthsPassed = min($monthsPassed, $maxIndex - 1);
-
-                    $currentStatus = $schedule->first(function ($item) use ($monthsPassed) {
-                        return $item['month_index'] > $monthsPassed;
-                    }) ?? $schedule->last();
 
                     $loan->remaining_months = max(0, ($loan->term_months ?? $maxIndex) - $monthsPassed);
-                    $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
+                    $loan->remaining_principal = $this->paymentSchedule->remainingPrincipalAt($loan, $schedule, $monthsPassed);
                     $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
                 }
             } else {
@@ -93,9 +92,10 @@ class LoanController extends Controller
 
     public function show(Loan $loan)
     {
-        $loan->load(['payments.transaction', 'wallet']);
+        $loan->load(['payments.transaction', 'wallet', 'recurringItem']);
         $schedule = collect([]);
         $monthsPassed = 0;
+        $timeline = collect([]);
 
         if ($loan->type === 'bank') {
             $schedule = $this->calculateAmortization(
@@ -109,17 +109,13 @@ class LoanController extends Controller
             );
 
             if ($schedule->isNotEmpty()) {
-                $monthsPassed = $loan->months_paid > 0 ? $loan->months_paid : (int) $loan->started_at->diffInMonths(Carbon::now());
+                $monthsPassed = $this->paymentSchedule->effectiveMonthsPaid($loan, $schedule, $loan->payments);
                 $maxIndex = $schedule->max('month_index');
-                $monthsPassed = min($monthsPassed, $maxIndex - 1);
-
-                $currentStatus = $schedule->first(function ($item) use ($monthsPassed) {
-                    return $item['month_index'] > $monthsPassed;
-                }) ?? $schedule->last();
 
                 $loan->remaining_months = max(0, ($loan->term_months ?? $maxIndex) - $monthsPassed);
-                $loan->remaining_principal = $currentStatus['remaining_principal'] ?? 0;
+                $loan->remaining_principal = $this->paymentSchedule->remainingPrincipalAt($loan, $schedule, $monthsPassed);
                 $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');
+                $timeline = $this->paymentSchedule->buildTimeline($loan, $schedule, $loan->payments, $monthsPassed);
             } else {
                 $loan->remaining_months = $loan->term_months;
                 $loan->remaining_principal = $loan->principal_amount;
@@ -127,7 +123,9 @@ class LoanController extends Controller
             }
         }
 
-        return view('loans.show', compact('loan', 'schedule', 'monthsPassed'));
+        $paymentDay = $loan->isBankLoan() ? $this->paymentSchedule->paymentDay($loan) : null;
+
+        return view('loans.show', compact('loan', 'schedule', 'monthsPassed', 'timeline', 'paymentDay'));
     }
 
     public function create()
@@ -151,6 +149,8 @@ class LoanController extends Controller
             'term_months' => 'nullable|integer',
             'months_paid' => 'nullable|integer',
             'monthly_payment' => 'nullable|numeric',
+            'payment_day' => 'nullable|integer|min:1|max:31',
+            'link_recurring' => 'sometimes|boolean',
             'custom_schedule' => 'sometimes|array',
         ]);
 
@@ -174,12 +174,16 @@ class LoanController extends Controller
             $loan = Loan::create(collect($validated)->only([
                 'type', 'name', 'principal_amount', 'started_at', 'wallet_id',
                 'interest_rate', 'interest_calculation_method', 'term_months',
-                'months_paid', 'monthly_payment',
+                'months_paid', 'monthly_payment', 'payment_day',
             ])->filter(fn ($v) => $v !== null)->all());
 
             if ($request->boolean('record_cash_flow') && $validated['wallet_id']) {
                 $wallet = Wallet::query()->findOrFail($validated['wallet_id']);
                 $this->loanWallet->recordCreation($loan, $wallet);
+            }
+
+            if ($loan->type === 'bank' && $request->boolean('link_recurring', true)) {
+                $this->paymentSchedule->syncRecurringItem($loan->fresh());
             }
 
             return $loan;
@@ -239,26 +243,65 @@ class LoanController extends Controller
         ]);
 
         $validated['paid_at'] = $this->convertDateFormat($validated['paid_at']);
+        $wasEarly = false;
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, &$wasEarly) {
             $loan = Loan::query()->findOrFail($validated['loan_id']);
             $wallet = Wallet::query()->findOrFail($validated['wallet_id']);
+            $paidAt = Carbon::parse($validated['paid_at']);
+
+            $periodMeta = ['kind' => Payment::KIND_PERIOD, 'reduces_principal' => true];
+            if ($loan->type === 'bank') {
+                $schedule = $this->calculateAmortization(
+                    $loan->id,
+                    $loan->principal_amount,
+                    $loan->interest_rate,
+                    $loan->term_months,
+                    $loan->started_at,
+                    $loan->monthly_payment,
+                    $loan->interest_calculation_method ?? 'monthly'
+                );
+                $resolved = $this->paymentSchedule->resolvePeriodForPayment($loan, $paidAt, $schedule);
+                $periodMeta = [
+                    'kind' => $resolved['kind'],
+                    'period_due_date' => $resolved['period_due_date']->toDateString(),
+                    'schedule_month_index' => $resolved['schedule_month_index'],
+                    'reduces_principal' => $resolved['reduces_principal'],
+                ];
+            }
 
             $payment = Payment::create([
                 'loan_id' => $validated['loan_id'],
                 'amount' => $validated['amount'],
                 'paid_at' => $validated['paid_at'],
                 'note' => $validated['note'] ?? null,
+                ...$periodMeta,
             ]);
 
             $this->loanWallet->recordPayment($loan, $payment, $wallet);
 
+            if ($loan->type === 'bank' && $payment->reduces_principal && $payment->schedule_month_index) {
+                $loan->update([
+                    'months_paid' => max((int) $loan->months_paid, (int) $payment->schedule_month_index),
+                ]);
+            }
+
             if (! $loan->wallet_id) {
                 $loan->update(['wallet_id' => $wallet->id]);
             }
+
+            if ($loan->type === 'bank') {
+                $this->paymentSchedule->syncRecurringItem($loan->fresh());
+            }
+
+            $wasEarly = $payment->isEarly();
         });
 
-        return redirect()->route('loans.index')->with('success', 'Đã ghi thanh toán và cập nhật ví.');
+        $message = $wasEarly
+            ? 'Đã ghi thanh toán trước (chưa trừ gốc). Số dư gốc cập nhật khi thanh toán đúng kỳ từ 06/2026.'
+            : 'Đã ghi thanh toán và cập nhật ví.';
+
+        return redirect()->route('loans.show', $validated['loan_id'])->with('success', $message);
     }
 
     public function settle(Request $request, Loan $loan)
@@ -289,9 +332,11 @@ class LoanController extends Controller
 
                 $payment = Payment::create([
                     'loan_id' => $loan->id,
+                    'kind' => Payment::KIND_SETTLEMENT,
                     'amount' => $amount,
                     'paid_at' => $paidAt,
                     'note' => $validated['note'] ?? 'Tất toán',
+                    'reduces_principal' => true,
                 ]);
 
                 $this->loanWallet->recordPayment($loan, $payment, $wallet);

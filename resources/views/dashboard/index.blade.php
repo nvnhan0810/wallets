@@ -34,6 +34,30 @@
     </div>
 </div>
 
+@if($upcomingLoanPayments->isNotEmpty())
+<div class="mb-8">
+    <h3 class="text-lg font-semibold text-gray-900 mb-3">Nhắc thanh toán khoản vay (trong {{ $alertDays }} ngày)</h3>
+    <div class="space-y-3">
+        @foreach($upcomingLoanPayments as $loan)
+        <div class="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <p class="font-semibold text-gray-900">{{ $loan->name }}</p>
+                <p class="text-sm text-gray-600 mt-1">
+                    Đến hạn {{ $loan->payment_due_date->format('d/m/Y') }}
+                    · {{ number_format($loan->monthly_payment ?? 0, 0) }} ₫
+                    @if($loan->days_until_payment === 0) — <strong>Hôm nay</strong>
+                    @elseif($loan->days_until_payment === 1) — <strong>Ngày mai</strong>
+                    @else — Còn {{ $loan->days_until_payment }} ngày
+                    @endif
+                </p>
+            </div>
+            <a href="{{ route('loans.show', $loan) }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Thanh toán →</a>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 @if($upcomingRecurring->isNotEmpty())
 <div class="mb-8">
     <h3 class="text-lg font-semibold text-gray-900 mb-3">Nhắc thu chi cố định (trong {{ $alertDays }} ngày)</h3>

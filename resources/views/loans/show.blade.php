@@ -66,6 +66,15 @@
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ $loan->term_months }} tháng</dd>
             </div>
             <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Ngày thanh toán cố định</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    Ngày {{ $paymentDay ?? '—' }} hàng tháng
+                    @if($loan->recurringItem)
+                        · <a href="{{ route('recurring-items.index') }}" class="text-indigo-600 hover:underline">Chi cố định: {{ $loan->recurringItem->name }}</a>
+                    @endif
+                </dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt class="text-sm font-medium text-gray-500">Gốc còn lại</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ number_format($loan->remaining_principal ?? 0, 0) }} ₫</dd>
             </div>
@@ -110,47 +119,55 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($schedule as $item)
-                            <tr class="{{ $item['month_index'] <= $monthsPassed ? 'bg-green-50' : '' }}">
+                            @foreach($timeline as $row)
+                            @if($row['type'] === 'early')
+                            @php $payment = $row['payment']; $item = $row['period']; @endphp
+                            <tr class="bg-sky-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-sky-800" colspan="{{ $method === 'daily' ? 2 : 1 }}">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800">TT trước</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-900">
+                                    {{ $payment->paid_at->format('d/m/Y') }}
+                                </td>
+                                @if($method === 'daily')<td class="px-6 py-4 text-sm text-sky-600">—</td>@endif
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-900">
+                                    {{ number_format($payment->amount, 0) }} ₫
+                                </td>
+                                <td class="px-6 py-4 text-sm text-sky-600" colspan="{{ $method === 'custom' ? 4 : 3 }}">
+                                    <p>{{ $row['note'] }}</p>
+                                    <p class="text-xs mt-1">Kỳ đến hạn {{ $row['period_due_date']->format('d/m/Y') }} · {{ $payment->note }}</p>
+                                </td>
+                            </tr>
+                            @else
+                            @php $item = $row['period']; @endphp
+                            <tr class="{{ ($row['is_paid'] ?? false) ? 'bg-green-50' : '' }}">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $item['month_index'] }}
-                                    @if($item['month_index'] <= $monthsPassed)
-                                        <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                            Đã trả
-                                        </span>
+                                    @if($row['is_paid'] ?? false)
+                                        <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Đã trả</span>
+                                    @elseif($row['period_payment'] ?? null)
+                                        <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Đã TT</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $item['date']->format('d/m/Y') }}
+                                    {{ $row['period_due_date']->format('d/m/Y') }}
+                                    <span class="block text-xs text-gray-500">Lịch: {{ $item['date']->format('d/m/Y') }}</span>
                                     @if($item['is_adjusted'])
-                                        <span class="ml-1 text-xs text-orange-600" title="Ngày lý thuyết: {{ $item['theoretical_date']->format('d/m/Y') }}">
-                                            (dời từ {{ $item['theoretical_date']->format('d/m') }})
-                                        </span>
+                                        <span class="ml-1 text-xs text-orange-600">(dời từ {{ $item['theoretical_date']->format('d/m') }})</span>
                                     @endif
                                 </td>
                                 @if($method === 'daily')
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $item['days'] }} ngày
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $item['days'] }} ngày</td>
                                 @endif
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ number_format($item['payment'], 0) }} ₫
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ number_format($item['principal'], 0) }} ₫
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ number_format($item['interest'], 0) }} ₫
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ number_format($item['payment'], 0) }} ₫</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ number_format($item['principal'], 0) }} ₫</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ number_format($item['interest'], 0) }} ₫</td>
                                 @if($method === 'custom')
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ number_format($item['fee'] ?? 0, 0) }} ₫
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ number_format($item['fee'] ?? 0, 0) }} ₫</td>
                                 @endif
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ number_format($item['remaining_principal'], 0) }} ₫
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ number_format($item['remaining_principal'], 0) }} ₫</td>
                             </tr>
+                            @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -158,6 +175,33 @@
             </div>
         </div>
     </div>
+</div>
+@endif
+
+@if($loan->type == 'bank' && $loan->payments->isNotEmpty())
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Lịch sử thanh toán</h3>
+    </div>
+    <ul class="divide-y divide-gray-200 border-t border-gray-200">
+        @foreach($loan->payments->sortByDesc('paid_at') as $payment)
+        <li class="px-4 py-4 sm:px-6">
+            <div class="flex justify-between items-start gap-2">
+                <div>
+                    <span class="text-xs px-2 py-0.5 rounded-full {{ $payment->isEarly() ? 'bg-sky-100 text-sky-800' : 'bg-green-100 text-green-800' }}">{{ $payment->kindLabel() }}</span>
+                    <p class="mt-1 font-medium text-gray-900">{{ number_format($payment->amount, 0) }} ₫ · {{ $payment->paid_at->format('d/m/Y') }}</p>
+                    @if($payment->period_due_date)
+                        <p class="text-xs text-gray-500">Kỳ đến hạn {{ $payment->period_due_date->format('d/m/Y') }}</p>
+                    @endif
+                    <p class="text-sm text-gray-600">{{ $payment->note ?? '—' }}</p>
+                </div>
+                @if($payment->transaction)
+                    <a href="{{ route('transactions.index', ['wallet_id' => $payment->transaction->wallet_id]) }}" class="text-xs text-indigo-600 hover:underline shrink-0">Ví</a>
+                @endif
+            </div>
+        </li>
+        @endforeach
+    </ul>
 </div>
 @endif
 

@@ -8,6 +8,8 @@ use Illuminate\Support\Collection;
 
 class RecurringItemService
 {
+    public function __construct(private LoanPaymentReminderService $loanReminders) {}
+
     public function upcoming(int $withinDays, ?Carbon $from = null): Collection
     {
         $from = ($from ?? Carbon::today())->copy()->startOfDay();
@@ -15,7 +17,7 @@ class RecurringItemService
 
         return RecurringItem::query()
             ->active()
-            ->with('wallet')
+            ->with(['wallet', 'loan'])
             ->get()
             ->map(function (RecurringItem $item) use ($from) {
                 $dueDate = $item->nextDueDate($from);
@@ -26,6 +28,7 @@ class RecurringItemService
                 return $item;
             })
             ->filter(fn (RecurringItem $item) => $item->due_date->lte($until))
+            ->pipe(fn ($items) => $this->loanReminders->filterRecurringWithEarlyCoverage($items))
             ->sortBy('due_date')
             ->values();
     }
