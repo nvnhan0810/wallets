@@ -28,7 +28,7 @@ class AuthController extends Controller
     public function redirectGoogle(): RedirectResponse
     {
         return Socialite::driver('google')
-            ->redirectUrl(route('auth.google.callback'))
+            ->redirectUrl($this->googleRedirectUrl())
             ->redirect();
     }
 
@@ -36,7 +36,7 @@ class AuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')
-                ->redirectUrl(route('auth.google.callback'))
+                ->redirectUrl($this->googleRedirectUrl())
                 ->user();
         } catch (\Throwable) {
             return redirect()->route('login')
@@ -82,5 +82,10 @@ class AuthController extends Controller
         request()->session()->regenerateToken();
 
         return redirect()->route('login')->with('success', 'Đã đăng xuất.');
+    }
+
+    private function googleRedirectUrl(): string
+    {
+        return (string) config('services.google.redirect');
     }
 }
