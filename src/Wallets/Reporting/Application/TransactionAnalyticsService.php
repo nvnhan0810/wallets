@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\Reporting\Application;
 
 use App\Models\Transaction;
 use Carbon\Carbon;
@@ -17,13 +17,13 @@ class TransactionAnalyticsService
 
     private const TOP_CATEGORIES = 5;
 
-    public function summary(string $period = 'month'): array
+    public function summary(int $userId, string $period = 'month'): array
     {
         $period = array_key_exists($period, self::PERIODS) ? $period : 'month';
         $config = self::PERIODS[$period];
 
         $from = $this->rangeStart($period, $config['buckets']);
-        $transactions = $this->cashFlowQuery()
+        $transactions = $this->cashFlowQuery($userId)
             ->where('transacted_at', '>=', $from)
             ->get(['type', 'amount', 'transacted_at', 'category']);
 
@@ -179,9 +179,10 @@ class TransactionAnalyticsService
         })->all();
     }
 
-    private function cashFlowQuery()
+    private function cashFlowQuery(int $userId)
     {
         return Transaction::query()
+            ->forUser($userId)
             ->whereIn('type', ['income', 'expense'])
             ->whereNull('wallet_transfer_id');
     }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\Lending\Application;
 
 use App\Models\Loan;
 use App\Models\Payment;

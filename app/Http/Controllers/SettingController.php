@@ -2,14 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Setting;
 use Illuminate\Http\Request;
+use Wallets\Preferences\Application\Command\UpdateSettings;
+use Wallets\Preferences\Application\Query\GetSettings;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
 
 class SettingController extends Controller
 {
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index()
     {
-        $recurringAlertDays = Setting::recurringAlertDays();
+        $settings = $this->queries->ask(new GetSettings(userId: auth()->id()));
+        $recurringAlertDays = $settings['recurring_alert_days'];
 
         return view('settings.index', compact('recurringAlertDays'));
     }
@@ -20,7 +29,10 @@ class SettingController extends Controller
             'recurring_alert_days' => 'required|integer|min:1|max:30',
         ]);
 
-        Setting::set('recurring_alert_days', $validated['recurring_alert_days']);
+        $this->commands->dispatch(new UpdateSettings(
+            userId: auth()->id(),
+            recurringAlertDays: (int) $validated['recurring_alert_days'],
+        ));
 
         return redirect()->route('settings.index')->with('success', 'Đã lưu cài đặt.');
     }

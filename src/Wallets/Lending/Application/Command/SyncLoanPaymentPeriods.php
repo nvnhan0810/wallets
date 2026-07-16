@@ -1,0 +1,12 @@
+<?php
+
+namespace Wallets\Lending\Application\Command;
+
+use Wallets\Shared\Application\Command;
+
+final class SyncLoanPaymentPeriods implements Command
+{
+    public function __construct(
+        public readonly ?int $userId = null,
+    ) {}
+}

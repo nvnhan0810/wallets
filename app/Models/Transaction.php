@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
+    use BelongsToUser;
+
     public const TYPES = [
         'income' => 'Thu',
         'expense' => 'Chi',
@@ -19,7 +22,8 @@ class Transaction extends Model
     ];
 
     protected $fillable = [
-        'wallet_id',
+        'user_id',
+                'wallet_id',
         'type',
         'adjustment_direction',
         'amount',

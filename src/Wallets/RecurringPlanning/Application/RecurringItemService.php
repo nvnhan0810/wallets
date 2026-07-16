@@ -1,21 +1,23 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\RecurringPlanning\Application;
 
 use App\Models\RecurringItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Wallets\Lending\Application\LoanPaymentReminderService;
 
 class RecurringItemService
 {
     public function __construct(private LoanPaymentReminderService $loanReminders) {}
 
-    public function upcoming(int $withinDays, ?Carbon $from = null): Collection
+    public function upcoming(int $userId, int $withinDays, ?Carbon $from = null): Collection
     {
         $from = ($from ?? Carbon::today())->copy()->startOfDay();
         $until = $from->copy()->addDays($withinDays);
 
         return RecurringItem::query()
+            ->forUser($userId)
             ->active()
             ->with(['wallet', 'loan'])
             ->get()

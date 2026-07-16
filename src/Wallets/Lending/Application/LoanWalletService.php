@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\Lending\Application;
 
 use App\Models\Loan;
 use App\Models\Payment;
@@ -112,6 +112,7 @@ class LoanWalletService
             $wallet = Wallet::query()->lockForUpdate()->findOrFail($wallet->id);
 
             $transaction = Transaction::create([
+                'user_id' => $wallet->user_id,
                 'wallet_id' => $wallet->id,
                 'type' => $type,
                 'amount' => $amount,

@@ -3,28 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\RecurringItem;
-use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Wallets\RecurringPlanning\Application\Command\CreateRecurringItem;
+use Wallets\RecurringPlanning\Application\Command\DeleteRecurringItem;
+use Wallets\RecurringPlanning\Application\Command\UpdateRecurringItem;
+use Wallets\RecurringPlanning\Application\Query\ListRecurringItems;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
+use Wallets\WalletAccounting\Application\Query\ListWallets;
 
 class RecurringItemController extends Controller
 {
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index()
     {
-        $items = RecurringItem::query()
-            ->with('wallet')
-            ->orderByDesc('is_active')
-            ->orderBy('day_of_month')
-            ->orderBy('name')
-            ->get()
-            ->map(function (RecurringItem $item) {
-                $item->next_due = $item->nextDueDate();
-                $item->days_until = $item->daysUntilDue();
-                $item->insufficient_funds = $item->isInsufficientFunds();
-
-                return $item;
-            });
-
-        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
+        $items = $this->queries->ask(new ListRecurringItems(userId: auth()->id()));
+        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
         return view('recurring-items.index', compact('items', 'wallets'));
     }
@@ -40,7 +38,10 @@ class RecurringItemController extends Controller
             'note' => 'nullable|string',
         ]);
 
-        RecurringItem::create($validated);
+        $this->commands->dispatch(new CreateRecurringItem(
+            userId: auth()->id(),
+            data: $validated,
+        ));
 
         return redirect()->route('recurring-items.index')->with('success', 'Đã thêm khoản thu/chi cố định.');
     }
@@ -59,14 +60,21 @@ class RecurringItemController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        $recurringItem->update($validated);
+        $this->commands->dispatch(new UpdateRecurringItem(
+            userId: auth()->id(),
+            recurringItemId: $recurringItem->id,
+            data: $validated,
+        ));
 
         return redirect()->route('recurring-items.index')->with('success', 'Đã cập nhật.');
     }
 
     public function destroy(RecurringItem $recurringItem)
     {
-        $recurringItem->delete();
+        $this->commands->dispatch(new DeleteRecurringItem(
+            userId: auth()->id(),
+            recurringItemId: $recurringItem->id,
+        ));
 
         return redirect()->route('recurring-items.index')->with('success', 'Đã xóa.');
     }

@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Loan extends Model
 {
+    use BelongsToUser;
+
     protected $fillable = [
-        'type',
+        'user_id',
+                'type',
         'name',
         'principal_amount',
         'interest_rate',

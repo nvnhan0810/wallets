@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WalletTransfer extends Model
 {
+    use BelongsToUser;
+
     protected $fillable = [
-        'from_wallet_id',
+        'user_id',
+                'from_wallet_id',
         'to_wallet_id',
         'amount',
         'fee',

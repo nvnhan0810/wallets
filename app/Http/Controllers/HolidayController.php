@@ -2,15 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
+use Wallets\Calendar\Application\Command\CreateHoliday;
+use Wallets\Calendar\Application\Command\DeleteHoliday;
+use Wallets\Calendar\Application\Query\ListHolidays;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
 
 class HolidayController extends Controller
 {
+    use ConvertsVietnameseDates;
+
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index()
     {
-        $holidays = Holiday::orderBy('date', 'desc')->paginate(50);
+        $holidays = $this->queries->ask(new ListHolidays);
+
         return view('holidays.index', compact('holidays'));
     }
 
@@ -22,41 +35,17 @@ class HolidayController extends Controller
             'type' => 'required|in:public,bank,custom',
         ]);
 
-        // Convert date format from dd/mm/yyyy to yyyy-mm-dd
         $validated['date'] = $this->convertDateFormat($validated['date']);
 
-        Holiday::create($validated);
+        $this->commands->dispatch(new CreateHoliday(data: $validated));
 
         return redirect()->route('holidays.index')->with('success', 'Đã thêm ngày lễ');
     }
 
     public function destroy(Holiday $holiday)
     {
-        $holiday->delete();
+        $this->commands->dispatch(new DeleteHoliday(holidayId: $holiday->id));
+
         return redirect()->route('holidays.index')->with('success', 'Đã xóa ngày lễ');
     }
-
-    /**
-     * Convert date format from dd/mm/yyyy to yyyy-mm-dd
-     */
-    private function convertDateFormat($date)
-    {
-        // If already in yyyy-mm-dd format, return as is
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        // Convert from dd/mm/yyyy to yyyy-mm-dd
-        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $matches)) {
-            return $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-        }
-
-        // If format is unrecognized, try to parse with Carbon
-        try {
-            return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return $date;
-        }
-    }
 }
-

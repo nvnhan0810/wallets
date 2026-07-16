@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\Lending\Application;
 
 use App\Models\Loan;
 use App\Models\RecurringItem;
@@ -10,15 +10,16 @@ use Illuminate\Support\Collection;
 
 class LoanPaymentReminderService
 {
-    public function __construct(private LoanPaymentScheduleService $scheduleService) {}
+    public function __construct(private \Wallets\Lending\Application\LoanPaymentScheduleService $scheduleService) {}
 
-    public function upcomingLoanPayments(?int $withinDays = null): Collection
+    public function upcomingLoanPayments(int $userId, ?int $withinDays = null): Collection
     {
-        $withinDays = $withinDays ?? Setting::recurringAlertDays();
+        $withinDays = $withinDays ?? Setting::recurringAlertDays($userId);
         $from = Carbon::today()->startOfDay();
         $until = $from->copy()->addDays($withinDays);
 
         return Loan::query()
+            ->forUser($userId)
             ->where('is_settled', false)
             ->where('type', 'bank')
             ->with(['payments', 'recurringItem', 'wallet'])

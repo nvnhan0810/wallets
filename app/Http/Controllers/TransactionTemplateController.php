@@ -3,20 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\TransactionTemplate;
-use App\Models\Wallet;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Wallets\Catalog\Application\Command\CreateTransactionTemplate;
+use Wallets\Catalog\Application\Command\DeleteTransactionTemplate;
+use Wallets\Catalog\Application\Query\ListTemplates;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
+use Wallets\WalletAccounting\Application\Query\ListWallets;
 
 class TransactionTemplateController extends Controller
 {
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index()
     {
-        $templates = TransactionTemplate::query()
-            ->with(['defaultWallet', 'fromWallet', 'toWallet'])
-            ->orderBy('name')
-            ->get();
-
-        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
+        $templates = $this->queries->ask(new ListTemplates(userId: auth()->id()));
+        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
         return view('transaction-templates.index', compact('templates', 'wallets'));
     }
@@ -47,14 +52,20 @@ class TransactionTemplateController extends Controller
         $validated = $request->validate($rules);
         $validated['fee'] = $type === 'transfer' ? (float) ($validated['fee'] ?? 0) : null;
 
-        TransactionTemplate::create($validated);
+        $this->commands->dispatch(new CreateTransactionTemplate(
+            userId: auth()->id(),
+            data: $validated,
+        ));
 
         return redirect()->route('transaction-templates.index')->with('success', 'Đã tạo mẫu giao dịch.');
     }
 
     public function destroy(TransactionTemplate $transactionTemplate)
     {
-        $transactionTemplate->delete();
+        $this->commands->dispatch(new DeleteTransactionTemplate(
+            userId: auth()->id(),
+            templateId: $transactionTemplate->id,
+        ));
 
         return redirect()->route('transaction-templates.index')->with('success', 'Đã xóa mẫu.');
     }

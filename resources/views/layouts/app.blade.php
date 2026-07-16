@@ -55,6 +55,10 @@
                     <div class="flex items-center gap-2">
                         <a href="{{ route('transactions.create') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100">+ Giao dịch</a>
                         <a href="{{ route('loans.create') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">+ Khoản vay</a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100">Đăng xuất</button>
+                        </form>
                     </div>
                 </div>
             </div>

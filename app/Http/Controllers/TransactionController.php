@@ -4,48 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Transaction;
-use App\Models\TransactionTemplate;
-use App\Models\Wallet;
-use App\Models\WalletTransfer;
-use App\Services\WalletTransferService;
+use DomainException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Wallets\Catalog\Application\Query\ListTemplates;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
+use Wallets\WalletAccounting\Application\Command\DeleteTransaction;
+use Wallets\WalletAccounting\Application\Command\RecordAdjustment;
+use Wallets\WalletAccounting\Application\Command\RecordIncomeExpense;
+use Wallets\WalletAccounting\Application\Command\TransferBetweenWallets;
+use Wallets\WalletAccounting\Application\Query\ListTransactions;
+use Wallets\WalletAccounting\Application\Query\ListWallets;
 
 class TransactionController extends Controller
 {
     use ConvertsVietnameseDates;
 
-    public function __construct(private WalletTransferService $transferService) {}
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
 
     public function index(Request $request)
     {
-        $query = Transaction::query()
-            ->with(['wallet', 'walletTransfer.fromWallet', 'walletTransfer.toWallet'])
-            ->orderByDesc('transacted_at')
-            ->orderByDesc('id');
-
-        if ($request->filled('wallet_id')) {
-            $query->where('wallet_id', $request->wallet_id);
-        }
-
-        if ($request->filled('type') && in_array($request->type, ['income', 'expense', 'adjustment', 'transfer'], true)) {
-            if ($request->type === 'transfer') {
-                $query->whereNotNull('wallet_transfer_id');
-            } else {
-                $query->where('type', $request->type)->whereNull('wallet_transfer_id');
-            }
-        }
-
-        $transactions = $query->paginate(20)->withQueryString();
-        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
+        $transactions = $this->queries->ask(new ListTransactions(
+            userId: auth()->id(),
+            walletId: $request->filled('wallet_id') ? (int) $request->wallet_id : null,
+            type: $request->input('type'),
+        ));
+        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
         return view('transactions.index', compact('transactions', 'wallets'));
     }
 
     public function create(Request $request)
     {
-        $wallets = Wallet::query()->where('is_active', true)->orderBy('name')->get();
-        $templates = TransactionTemplate::query()->with(['defaultWallet', 'fromWallet', 'toWallet'])->orderBy('name')->get();
+        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
+        $templates = $this->queries->ask(new ListTemplates(userId: auth()->id()));
         $selectedTemplate = $request->filled('template_id')
             ? $templates->firstWhere('id', (int) $request->template_id)
             : null;
@@ -77,27 +72,20 @@ class TransactionController extends Controller
 
     public function destroy(Transaction $transaction)
     {
-        if ($transaction->isFromLoan()) {
-            return back()->withErrors(['transaction' => 'Giao dịch liên kết khoản vay. Xóa tại trang Khoản vay nếu cần.']);
+        try {
+            $result = $this->commands->dispatch(new DeleteTransaction(
+                userId: auth()->id(),
+                transactionId: $transaction->id,
+            ));
+        } catch (DomainException $e) {
+            return back()->withErrors(['transaction' => $e->getMessage()]);
         }
 
-        if ($transaction->wallet_transfer_id) {
-            $transfer = WalletTransfer::query()->findOrFail($transaction->wallet_transfer_id);
-            $this->transferService->reverse($transfer);
+        $message = ($result['type'] ?? null) === 'transfer'
+            ? 'Đã hủy chuyển ví và hoàn số dư.'
+            : 'Đã xóa giao dịch.';
 
-            return back()->with('success', 'Đã hủy chuyển ví và hoàn số dư.');
-        }
-
-        DB::transaction(function () use ($transaction) {
-            $wallet = Wallet::query()->lockForUpdate()->findOrFail($transaction->wallet_id);
-            $effectiveType = $transaction->isAdjustment()
-                ? ($transaction->adjustment_direction === 'increase' ? 'income' : 'expense')
-                : $transaction->type;
-            $wallet->reverseTransaction($effectiveType, (float) $transaction->amount);
-            $transaction->delete();
-        });
-
-        return back()->with('success', 'Đã xóa giao dịch.');
+        return back()->with('success', $message);
     }
 
     private function storeIncomeExpense(Request $request)
@@ -118,24 +106,12 @@ class TransactionController extends Controller
         $validated['transacted_at'] = $this->convertDateFormat($validated['transacted_at']);
         $validated['amount'] = abs((float) $validated['amount']);
 
-        DB::transaction(function () use ($validated, $request) {
-            $wallet = Wallet::query()->lockForUpdate()->findOrFail($validated['wallet_id']);
-
-            Transaction::create([
-                'wallet_id' => $validated['wallet_id'],
-                'type' => $validated['type'],
-                'amount' => $validated['amount'],
-                'description' => $validated['description'],
-                'category' => $validated['category'] ?? null,
-                'transaction_template_id' => $validated['transaction_template_id'] ?? null,
-                'transacted_at' => $validated['transacted_at'],
-                'note' => $validated['note'] ?? null,
-            ]);
-
-            $wallet->applyTransaction($validated['type'], $validated['amount']);
-
-            $this->maybeSaveTemplate($request, $validated);
-        });
+        $this->commands->dispatch(new RecordIncomeExpense(
+            userId: auth()->id(),
+            data: $validated,
+            saveAsTemplate: $request->boolean('save_as_template'),
+            templateName: $validated['template_name'] ?? null,
+        ));
 
         return redirect()->route('transactions.index')->with('success', 'Đã ghi nhận giao dịch.');
     }
@@ -157,35 +133,12 @@ class TransactionController extends Controller
         $validated['transacted_at'] = $this->convertDateFormat($validated['transacted_at']);
         $validated['amount'] = abs((float) $validated['amount']);
 
-        DB::transaction(function () use ($validated, $request) {
-            $wallet = Wallet::query()->lockForUpdate()->findOrFail($validated['wallet_id']);
-            $cashType = $validated['adjustment_direction'] === 'increase' ? 'income' : 'expense';
-
-            Transaction::create([
-                'wallet_id' => $validated['wallet_id'],
-                'type' => 'adjustment',
-                'adjustment_direction' => $validated['adjustment_direction'],
-                'amount' => $validated['amount'],
-                'description' => $validated['description'],
-                'category' => 'Cân đối',
-                'transaction_template_id' => $validated['transaction_template_id'] ?? null,
-                'transacted_at' => $validated['transacted_at'],
-                'note' => $validated['note'] ?? null,
-            ]);
-
-            $wallet->applyTransaction($cashType, $validated['amount']);
-
-            if ($request->boolean('save_as_template') && ! ($validated['transaction_template_id'] ?? null)) {
-                TransactionTemplate::create([
-                    'name' => $validated['template_name'] ?? $validated['description'],
-                    'type' => 'adjustment',
-                    'amount' => $validated['amount'],
-                    'adjustment_direction' => $validated['adjustment_direction'],
-                    'description' => $validated['description'],
-                    'default_wallet_id' => $validated['wallet_id'],
-                ]);
-            }
-        });
+        $this->commands->dispatch(new RecordAdjustment(
+            userId: auth()->id(),
+            data: $validated,
+            saveAsTemplate: $request->boolean('save_as_template'),
+            templateName: $validated['template_name'] ?? null,
+        ));
 
         return redirect()->route('transactions.index')->with('success', 'Đã ghi cân đối số dư ví.');
     }
@@ -208,46 +161,13 @@ class TransactionController extends Controller
         $validated['transacted_at'] = $this->convertDateFormat($validated['transacted_at']);
         $validated['fee'] = (float) ($validated['fee'] ?? 0);
 
-        $from = Wallet::query()->findOrFail($validated['from_wallet_id']);
-        $to = Wallet::query()->findOrFail($validated['to_wallet_id']);
-
-        $this->transferService->record(
-            $from,
-            $to,
-            (float) $validated['amount'],
-            $validated['fee'],
-            $validated['description'],
-            $validated['transacted_at'],
-            $validated['note'] ?? null,
-            $validated['transaction_template_id'] ?? null,
-        );
-
-        if ($request->boolean('save_as_template') && ! ($validated['transaction_template_id'] ?? null)) {
-            TransactionTemplate::create([
-                'name' => $validated['template_name'] ?? $validated['description'],
-                'type' => 'transfer',
-                'amount' => $validated['amount'],
-                'fee' => $validated['fee'],
-                'description' => $validated['description'],
-                'from_wallet_id' => $validated['from_wallet_id'],
-                'to_wallet_id' => $validated['to_wallet_id'],
-            ]);
-        }
+        $this->commands->dispatch(new TransferBetweenWallets(
+            userId: auth()->id(),
+            data: $validated,
+            saveAsTemplate: $request->boolean('save_as_template'),
+            templateName: $validated['template_name'] ?? null,
+        ));
 
         return redirect()->route('transactions.index')->with('success', 'Đã chuyển tiền giữa các ví.');
-    }
-
-    private function maybeSaveTemplate(Request $request, array $validated): void
-    {
-        if ($request->boolean('save_as_template') && ! ($validated['transaction_template_id'] ?? null)) {
-            TransactionTemplate::create([
-                'name' => $validated['template_name'] ?? $validated['description'],
-                'type' => $validated['type'],
-                'amount' => $validated['amount'],
-                'category' => $validated['category'] ?? null,
-                'description' => $validated['description'],
-                'default_wallet_id' => $validated['wallet_id'],
-            ]);
-        }
     }
 }

@@ -42,7 +42,7 @@
             <span class="text-xs text-gray-500">Không tính chuyển ví &amp; cân đối</span>
         </div>
         <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-sm shadow-sm">
-            @foreach(\App\Services\TransactionAnalyticsService::PERIODS as $key => $meta)
+            @foreach(\Wallets\Reporting\Application\TransactionAnalyticsService::PERIODS as $key => $meta)
                 <a href="{{ route('dashboard', ['period' => $key]) }}"
                    class="px-3 py-1.5 rounded-md whitespace-nowrap {{ $chartPeriod === $key ? 'bg-indigo-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-50' }}">
                     {{ $meta['label'] }}

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Wallet extends Model
 {
+    use BelongsToUser;
+
     public const TYPES = [
         'cash' => 'Tiền mặt',
         'bank' => 'Tài khoản ngân hàng',
@@ -15,6 +18,7 @@ class Wallet extends Model
     ];
 
     protected $fillable = [
+        'user_id',
         'name',
         'type',
         'balance',
@@ -53,7 +57,6 @@ class Wallet extends Model
         return $this->type === 'credit_card';
     }
 
-    /** Số tiền còn có thể chi (thẻ: hạn mức − dư nợ; ví khác: số dư). */
     public function spendableBalance(): float
     {
         if ($this->isCreditCard()) {

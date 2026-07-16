@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Wallets\WalletAccounting\Application;
 
 use App\Models\Transaction;
 use App\Models\Wallet;
@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class WalletTransferService
 {
     public function record(
+        int $userId,
         Wallet $fromWallet,
         Wallet $toWallet,
         float $amount,
@@ -29,11 +30,12 @@ class WalletTransferService
         $fee = max(0, $fee);
         $totalOut = $amount + $fee;
 
-        return DB::transaction(function () use ($fromWallet, $toWallet, $amount, $fee, $totalOut, $description, $transactedAt, $note, $templateId) {
-            $from = Wallet::query()->lockForUpdate()->findOrFail($fromWallet->id);
-            $to = Wallet::query()->lockForUpdate()->findOrFail($toWallet->id);
+        return DB::transaction(function () use ($userId, $fromWallet, $toWallet, $amount, $fee, $totalOut, $description, $transactedAt, $note, $templateId) {
+            $from = Wallet::query()->forUser($userId)->lockForUpdate()->findOrFail($fromWallet->id);
+            $to = Wallet::query()->forUser($userId)->lockForUpdate()->findOrFail($toWallet->id);
 
             $transfer = WalletTransfer::create([
+                'user_id' => $userId,
                 'from_wallet_id' => $from->id,
                 'to_wallet_id' => $to->id,
                 'amount' => $amount,
@@ -50,6 +52,7 @@ class WalletTransferService
             }
 
             Transaction::create([
+                'user_id' => $userId,
                 'wallet_id' => $from->id,
                 'type' => 'expense',
                 'amount' => $totalOut,
@@ -65,6 +68,7 @@ class WalletTransferService
             $inDesc = $description ?: "Nhận từ {$from->name}";
 
             Transaction::create([
+                'user_id' => $userId,
                 'wallet_id' => $to->id,
                 'type' => 'income',
                 'amount' => $amount,
@@ -87,7 +91,7 @@ class WalletTransferService
             $transfer->load('transactions.wallet');
 
             foreach ($transfer->transactions as $transaction) {
-                $wallet = Wallet::query()->lockForUpdate()->findOrFail($transaction->wallet_id);
+                $wallet = Wallet::query()->forUser($transfer->user_id)->lockForUpdate()->findOrFail($transaction->wallet_id);
                 $wallet->reverseTransaction($transaction->type, (float) $transaction->amount);
                 $transaction->delete();
             }

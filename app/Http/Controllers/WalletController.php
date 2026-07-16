@@ -2,19 +2,31 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Wallet;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Wallets\Shared\Application\CommandBus;
+use Wallets\Shared\Application\QueryBus;
+use Wallets\WalletAccounting\Application\Command\CreateWallet;
+use Wallets\WalletAccounting\Application\Command\DeleteWallet;
+use Wallets\WalletAccounting\Application\Command\UpdateWallet;
+use Wallets\WalletAccounting\Application\Query\ListWallets;
+use App\Models\Wallet;
 
 class WalletController extends Controller
 {
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index()
     {
-        $wallets = Wallet::query()
-            ->withCount('transactions')
-            ->orderByDesc('is_active')
-            ->orderBy('name')
-            ->get();
+        $wallets = $this->queries->ask(new ListWallets(
+            userId: auth()->id(),
+            withTransactionCount: true,
+        ));
 
         return view('wallets.index', compact('wallets'));
     }
@@ -26,7 +38,10 @@ class WalletController extends Controller
 
     public function store(Request $request)
     {
-        Wallet::create($this->validatedWalletData($request));
+        $this->commands->dispatch(new CreateWallet(
+            userId: auth()->id(),
+            data: $this->validatedWalletData($request),
+        ));
 
         return redirect()->route('wallets.index')->with('success', 'Đã tạo ví.');
     }
@@ -38,18 +53,25 @@ class WalletController extends Controller
 
     public function update(Request $request, Wallet $wallet)
     {
-        $wallet->update($this->validatedWalletData($request, $wallet));
+        $this->commands->dispatch(new UpdateWallet(
+            userId: auth()->id(),
+            walletId: $wallet->id,
+            data: $this->validatedWalletData($request, $wallet),
+        ));
 
         return redirect()->route('wallets.index')->with('success', 'Đã cập nhật ví.');
     }
 
     public function destroy(Wallet $wallet)
     {
-        if ($wallet->transactions()->exists() || $wallet->recurringItems()->exists()) {
-            return back()->withErrors(['wallet' => 'Không thể xóa ví đang có giao dịch hoặc khoản thu/chi cố định.']);
+        try {
+            $this->commands->dispatch(new DeleteWallet(
+                userId: auth()->id(),
+                walletId: $wallet->id,
+            ));
+        } catch (DomainException $e) {
+            return back()->withErrors(['wallet' => $e->getMessage()]);
         }
-
-        $wallet->delete();
 
         return redirect()->route('wallets.index')->with('success', 'Đã xóa ví.');
     }
@@ -92,7 +114,7 @@ class WalletController extends Controller
             if (! $isEdit) {
                 $outstanding = (float) $validated['outstanding_balance'];
                 if ($outstanding > $limit) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
+                    throw ValidationException::withMessages([
                         'outstanding_balance' => 'Dư nợ không được vượt hạn mức.',
                     ]);
                 }

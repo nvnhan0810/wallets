@@ -2,29 +2,32 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
-    protected $fillable = ['key', 'value'];
+    use BelongsToUser;
 
-    public static function get(string $key, mixed $default = null): mixed
+    protected $fillable = ['user_id', 'key', 'value'];
+
+    public static function getForUser(int $userId, string $key, mixed $default = null): mixed
     {
-        $setting = static::query()->where('key', $key)->first();
+        $setting = static::query()->forUser($userId)->where('key', $key)->first();
 
         return $setting?->value ?? $default;
     }
 
-    public static function set(string $key, mixed $value): void
+    public static function setForUser(int $userId, string $key, mixed $value): void
     {
         static::query()->updateOrCreate(
-            ['key' => $key],
+            ['user_id' => $userId, 'key' => $key],
             ['value' => is_scalar($value) ? (string) $value : json_encode($value)]
         );
     }
 
-    public static function recurringAlertDays(): int
+    public static function recurringAlertDays(int $userId): int
     {
-        return max(1, (int) static::get('recurring_alert_days', 3));
+        return max(1, (int) static::getForUser($userId, 'recurring_alert_days', 3));
     }
 }

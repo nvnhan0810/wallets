@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -9,13 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RecurringItem extends Model
 {
+    use BelongsToUser;
+
     public const TYPES = [
         'income' => 'Thu cố định',
         'expense' => 'Chi cố định',
     ];
 
     protected $fillable = [
-        'name',
+        'user_id',
+                'name',
         'type',
         'amount',
         'wallet_id',
