@@ -12,7 +12,7 @@
             </div>
         </div>
         <div class="mt-5 md:mt-0 md:col-span-2">
-            <form action="{{ route('loans.store') }}" method="POST">
+            <form action="{{ route('loans.store') }}" method="POST" @submit="onSubmit($event)" x-ref="loanForm">
                 @csrf
                 <div class="shadow sm:rounded-md sm:overflow-hidden">
                     <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
@@ -31,13 +31,13 @@
                         <div class="grid grid-cols-6 gap-6">
                             <div class="col-span-6 sm:col-span-4">
                                 <label for="name" class="block text-sm font-medium text-gray-700" x-text="type === 'bank' ? 'Tên Ngân hàng / Tổ chức' : 'Tên Người mượn / Cho mượn'"></label>
-                                <input type="text" name="name" id="name" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2">
+                                <input type="text" name="name" id="name" x-model="name" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2">
                             </div>
 
                             <div class="col-span-6 sm:col-span-3">
                                 <label for="principal_amount" class="block text-sm font-medium text-gray-700">Tổng số tiền (Gốc)</label>
                                 <div class="mt-1 relative rounded-md shadow-sm">
-                                    <input type="number" name="principal_amount" id="principal_amount" x-model.number="principal" required class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md p-2 border" placeholder="0">
+                                    <x-money-input name="principal_amount" id="principal_amount" alpine-model="principal" required class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md p-2 border" />
                                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                         <span class="text-gray-500 sm:text-sm">VND</span>
                                     </div>
@@ -46,21 +46,21 @@
 
                             <div class="col-span-6 sm:col-span-3">
                                 <label for="started_at" class="block text-sm font-medium text-gray-700">Ngày bắt đầu</label>
-                                <input type="text" name="started_at" id="started_at" x-model="startDate" required class="datepicker mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2" placeholder="dd/mm/yyyy">
+                                <input type="text" name="started_at" id="started_at" x-model="startDate" @change="startDate = $event.target.value; syncMonthsPaid(true)" required class="datepicker mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2" placeholder="dd/mm/yyyy">
                             </div>
                         </div>
 
-                                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3" x-data="{ recordCashFlow: true }">
+                                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
                             <p class="text-sm font-medium text-indigo-900">Dòng tiền qua ví</p>
                             <p class="text-xs text-indigo-700" x-show="type === 'lend'">Cho mượn → chi tiền từ ví.</p>
                             <p class="text-xs text-indigo-700" x-show="type !== 'lend'">Vay / mượn → thu tiền vào ví.</p>
                             <label class="flex items-center gap-2 text-sm text-gray-700">
-                                <input type="checkbox" name="record_cash_flow" value="1" x-model="recordCashFlow" checked class="rounded text-indigo-600">
+                                <input type="checkbox" name="record_cash_flow" value="1" x-model="recordCashFlow" class="rounded text-indigo-600">
                                 Ghi nhận giao dịch vào ví khi tạo
                             </label>
                             <div x-show="recordCashFlow">
                                 <label for="wallet_id" class="block text-sm font-medium text-gray-700">Ví</label>
-                                <select name="wallet_id" id="wallet_id" :required="recordCashFlow" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
+                                <select name="wallet_id" id="wallet_id" x-model="walletId" :required="recordCashFlow" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
                                     <option value="">Chọn ví</option>
                                     @foreach($wallets as $w)
                                         <option value="{{ $w->id }}" @selected(old('wallet_id') == $w->id)>{{ $w->name }}</option>
@@ -100,7 +100,8 @@
 
                             <div class="col-span-6 sm:col-span-2" x-show="calculationMethod !== 'custom'">
                                 <label for="months_paid" class="block text-sm font-medium text-gray-700">Đã đóng (Tháng)</label>
-                                <input type="number" name="months_paid" id="months_paid" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2" placeholder="0">
+                                <input type="number" name="months_paid" id="months_paid" x-model.number="monthsPaid" min="0" :max="months || undefined" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2" placeholder="0" @input="monthsPaidManual = true">
+                                <p class="text-xs text-gray-500 mt-1">Tự tính từ ngày bắt đầu → hôm nay. Có thể sửa tay.</p>
                             </div>
 
                             <div class="col-span-6 sm:col-span-2">
@@ -108,19 +109,26 @@
                                     <span x-show="calculationMethod !== 'custom'">Đóng hàng tháng (Dự tính)</span>
                                     <span x-show="calculationMethod === 'custom'">Tổng trả hàng tháng (Custom)</span>
                                 </label>
-                                <input type="number" step="1" name="monthly_payment" id="monthly_payment" x-model="monthlyPayment" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2" :class="calculationMethod !== 'custom' ? 'bg-gray-50' : ''" placeholder="Nhập tổng trả mỗi tháng">
+                                <input type="text" inputmode="numeric" name="monthly_payment" id="monthly_payment"
+                                    class="money-input mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+                                    x-init="$el.__moneyAlpine = true"
+                                    :value="$money.format(monthlyPayment)"
+                                    @input="$money.onInput($event.target, v => monthlyPayment = v)"
+                                    :readonly="calculationMethod !== 'custom'"
+                                    :class="calculationMethod !== 'custom' ? 'bg-gray-50' : ''"
+                                    placeholder="Nhập tổng trả mỗi tháng">
                                 <p class="text-xs text-gray-500" x-show="calculationMethod === 'custom'">* Mỗi kỳ: Phí = Tổng trả - Gốc - Lãi (không âm).</p>
                             </div>
 
                             <div class="col-span-6 sm:col-span-2">
                                 <label for="payment_day" class="block text-sm font-medium text-gray-700">Ngày thanh toán cố định (tháng)</label>
-                                <input type="number" name="payment_day" id="payment_day" min="1" max="31" value="{{ old('payment_day', 25) }}" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="VD: 25">
+                                <input type="number" name="payment_day" id="payment_day" x-model.number="paymentDay" min="1" max="31" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="VD: 25">
                                 <p class="text-xs text-gray-500 mt-1">Thanh toán trước ngày này không trừ gốc. Từ 06/2026 chỉ TT đúng kỳ mới trừ gốc.</p>
                             </div>
 
                             <div class="col-span-6">
                                 <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" name="link_recurring" value="1" checked class="rounded border-gray-300 text-indigo-600">
+                                    <input type="checkbox" name="link_recurring" value="1" x-model="linkRecurring" class="rounded border-gray-300 text-indigo-600">
                                     Tạo khoản <strong>chi cố định</strong> gắn với khoản vay (nhắc dashboard)
                                 </label>
                             </div>
@@ -154,13 +162,24 @@
                                                         <input type="date" :name="`custom_schedule[${idx}][paid_at]`" x-model="row.paid_at" class="border-gray-300 rounded p-1 text-xs">
                                                     </td>
                                                     <td class="px-3 py-2">
-                                                        <input type="number" step="1" :name="`custom_schedule[${idx}][principal]`" x-model.number="row.principal" class="w-24 border-gray-300 rounded p-1 text-xs">
+                                                        <input type="text" inputmode="numeric" :name="`custom_schedule[${idx}][principal]`"
+                                                            class="money-input w-24 border-gray-300 rounded p-1 text-xs"
+                                                            x-init="$el.__moneyAlpine = true"
+                                                            :value="$money.format(row.principal)"
+                                                            @input="$money.onInput($event.target, v => row.principal = v)">
                                                     </td>
                                                     <td class="px-3 py-2">
-                                                        <input type="number" step="1" :name="`custom_schedule[${idx}][interest]`" x-model.number="row.interest" class="w-24 border-gray-300 rounded p-1 text-xs">
+                                                        <input type="text" inputmode="numeric" :name="`custom_schedule[${idx}][interest]`"
+                                                            class="money-input w-24 border-gray-300 rounded p-1 text-xs"
+                                                            x-init="$el.__moneyAlpine = true"
+                                                            :value="$money.format(row.interest)"
+                                                            @input="$money.onInput($event.target, v => row.interest = v)">
                                                     </td>
                                                     <td class="px-3 py-2">
-                                                        <input type="number" step="1" :value="computedFee(row)" :name="`custom_schedule[${idx}][fee]`" readonly class="w-24 border-gray-300 rounded p-1 text-xs bg-gray-100 text-gray-700">
+                                                        <input type="text" inputmode="numeric" readonly :name="`custom_schedule[${idx}][fee]`"
+                                                            class="money-input w-24 border-gray-300 rounded p-1 text-xs bg-gray-100 text-gray-700"
+                                                            x-init="$el.__moneyAlpine = true"
+                                                            :value="$money.format(computedFee(row))">
                                                         <input type="hidden" :name="`custom_schedule[${idx}][payment]`" :value="monthlyPayment">
                                                         <p class="text-[10px]" :class="rowValid(row) ? 'text-green-600' : 'text-red-600'">
                                                             <span x-show="rowValid(row)">OK</span>
@@ -219,30 +238,120 @@
             </form>
         </div>
     </div>
+
+    {{-- Confirm modal --}}
+    <div x-show="confirmOpen" x-cloak class="fixed z-50 inset-0 overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="flex items-end sm:items-center justify-center min-h-screen pt-4 px-4 pb-24 text-center sm:p-0">
+            <div x-show="confirmOpen" x-transition.opacity class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="confirmOpen = false"></div>
+            <div x-show="confirmOpen" x-transition.scale
+                 class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-1">Xác nhận tạo khoản vay</h3>
+                    <p class="text-sm text-gray-500 mb-4">Kiểm tra lại thông số trước khi lưu.</p>
+                    <dl class="space-y-2 text-sm border border-gray-100 rounded-lg divide-y divide-gray-100">
+                        <div class="flex justify-between gap-4 px-3 py-2">
+                            <dt class="text-gray-500">Loại</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="typeLabel()"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2">
+                            <dt class="text-gray-500">Tên</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="name || '—'"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2">
+                            <dt class="text-gray-500">Số tiền gốc</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="formatMoney(principal)"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2">
+                            <dt class="text-gray-500">Ngày bắt đầu</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="startDate || '—'"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="recordCashFlow && walletName()">
+                            <dt class="text-gray-500">Ví</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="walletName()"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2">
+                            <dt class="text-gray-500">Ghi nhận vào ví</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="recordCashFlow ? 'Có' : 'Không'"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Lãi suất</dt>
+                            <dd class="font-medium text-gray-900 text-right"><span x-text="rate"></span>% / năm</dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Cách tính lãi</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="methodLabel()"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Thời hạn</dt>
+                            <dd class="font-medium text-gray-900 text-right"><span x-text="months"></span> tháng</dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank' && calculationMethod !== 'custom'">
+                            <dt class="text-gray-500">Đã đóng</dt>
+                            <dd class="font-medium text-gray-900 text-right"><span x-text="monthsPaid"></span> tháng</dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Trả hàng tháng</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="formatMoney(monthlyPayment)"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Ngày TT cố định</dt>
+                            <dd class="font-medium text-gray-900 text-right">Ngày <span x-text="paymentDay"></span></dd>
+                        </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
+                            <dt class="text-gray-500">Chi cố định</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="linkRecurring ? 'Có' : 'Không'"></dd>
+                        </div>
+                    </dl>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    <button type="button" @click="confirmOpen = false"
+                        class="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Quay lại sửa
+                    </button>
+                    <button type="button" @click="confirmSubmit()"
+                        class="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700">
+                        Xác nhận tạo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     function loanForm() {
         return {
             type: 'bank',
+            name: '',
             principal: 0,
             rate: 10,
             months: 12,
             startDate: '',
+            monthsPaid: 0,
+            monthsPaidManual: false,
             monthlyPayment: 0,
             calculationMethod: 'monthly',
+            paymentDay: {{ (int) old('payment_day', 25) }},
+            walletId: '{{ old('wallet_id', '') }}',
+            recordCashFlow: true,
+            linkRecurring: true,
+            confirmOpen: false,
+            submitting: false,
             customSchedule: [],
+            wallets: @js($wallets->map(fn ($w) => ['id' => (string) $w->id, 'name' => $w->name])->values()),
 
             init() {
                 this.$watch('principal', () => this.calculateMonthly());
                 this.$watch('rate', () => this.calculateMonthly());
                 this.$watch('months', (newVal, oldVal) => {
                     this.calculateMonthly();
+                    this.syncMonthsPaid();
                     if (this.calculationMethod === 'custom') {
                         this.syncCustomRows(newVal, oldVal);
                     }
                 });
                 this.$watch('startDate', () => {
+                    this.syncMonthsPaid(true);
                     if (this.calculationMethod === 'custom') {
                         this.updateCustomDates();
                     }
@@ -253,6 +362,68 @@
                         this.updateCustomDates();
                     }
                 });
+            },
+
+            onSubmit(e) {
+                if (this.submitting) return;
+                e.preventDefault();
+                if (!this.$refs.loanForm.checkValidity()) {
+                    this.$refs.loanForm.reportValidity();
+                    return;
+                }
+                this.confirmOpen = true;
+            },
+
+            confirmSubmit() {
+                this.submitting = true;
+                this.confirmOpen = false;
+                this.$nextTick(() => this.$refs.loanForm.requestSubmit());
+            },
+
+            typeLabel() {
+                return { bank: 'Vay ngân hàng', borrow: 'Mượn nợ', lend: 'Cho mượn' }[this.type] || this.type;
+            },
+
+            methodLabel() {
+                return { monthly: 'Theo tháng', daily: 'Theo ngày (Actual/365)', custom: 'Tùy chỉnh' }[this.calculationMethod] || this.calculationMethod;
+            },
+
+            walletName() {
+                if (!this.walletId) return '';
+                const w = this.wallets.find(x => String(x.id) === String(this.walletId));
+                return w ? w.name : '';
+            },
+
+            /** Số tháng đã qua từ ngày bắt đầu đến hôm nay (làm tròn xuống, tối đa = thời hạn). */
+            syncMonthsPaid(force = false) {
+                if (this.monthsPaidManual && !force) {
+                    if (this.months > 0 && this.monthsPaid > this.months) {
+                        this.monthsPaid = this.months;
+                    }
+                    return;
+                }
+                if (force) {
+                    this.monthsPaidManual = false;
+                }
+                if (!this.startDate) {
+                    this.monthsPaid = 0;
+                    return;
+                }
+                const parts = this.startDate.split('/');
+                if (parts.length !== 3) return;
+                const start = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                if (isNaN(start.getTime())) return;
+
+                const now = new Date();
+                let diff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+                if (now.getDate() < start.getDate()) {
+                    diff -= 1;
+                }
+                diff = Math.max(0, diff);
+                if (this.months > 0) {
+                    diff = Math.min(diff, this.months);
+                }
+                this.monthsPaid = diff;
             },
 
             calculateMonthly() {

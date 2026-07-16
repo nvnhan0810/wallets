@@ -27,7 +27,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
-            <input type="number" name="amount" min="1" required class="mt-1 w-full rounded-md border border-gray-300 p-2">
+            <x-money-input name="amount" required class="mt-1 w-full rounded-md border border-gray-300 p-2" />
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700">Mô tả mặc định</label>
@@ -87,7 +87,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Phí (₫)</label>
-                <input type="number" name="fee" min="0" value="0" :disabled="type !== 'transfer'" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+                <x-money-input name="fee" value="0" :disabled="type !== 'transfer'" class="mt-1 w-full rounded-md border border-gray-300 p-2" />
             </div>
         </div>
 

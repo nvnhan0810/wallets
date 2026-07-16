@@ -37,7 +37,7 @@
             <p class="text-sm font-medium text-purple-900">Thông tin thẻ (không đổi dư nợ tại đây)</p>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Hạn mức (₫)</label>
-                <input type="number" name="credit_limit" x-model.number="creditLimit" min="0" step="1" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <x-money-input name="credit_limit" alpine-model="creditLimit" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -53,13 +53,13 @@
     @else
         <div x-show="type !== 'credit_card'" x-cloak>
             <label class="block text-sm font-medium text-gray-700">Số dư ban đầu (₫)</label>
-            <input type="number" name="balance" value="{{ old('balance', 0) }}" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+            <x-money-input name="balance" :value="old('balance', 0)" class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
         </div>
         <div x-show="type === 'credit_card'" x-cloak class="space-y-4 rounded-lg border border-purple-200 bg-purple-50/50 p-4">
             <p class="text-sm font-medium text-purple-900">Thông tin thẻ tín dụng</p>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Hạn mức (₫)</label>
-                <input type="number" name="credit_limit" x-model.number="creditLimit" min="0" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <x-money-input name="credit_limit" alpine-model="creditLimit" class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -73,7 +73,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Dư nợ ban đầu (₫)</label>
-                <input type="number" name="outstanding_balance" x-model.number="outstanding" min="0" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <x-money-input name="outstanding_balance" alpine-model="outstanding" class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
             </div>
             <div class="rounded-md bg-white border border-purple-100 p-3 text-sm">
                 <p class="text-gray-600">Hạn mức còn lại: <span class="font-semibold text-indigo-700" x-text="formatMoney(available)"></span></p>

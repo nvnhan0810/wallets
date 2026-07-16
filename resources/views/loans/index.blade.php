@@ -37,12 +37,10 @@
     }
 }">
 
-    <div class="md:flex md:items-center md:justify-between mb-6">
-        <div class="flex-1 min-w-0">
-            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                Khoản vay & Nợ
-            </h2>
-        </div>
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Khoản vay & Nợ
+        </h2>
     </div>
 
     <!-- Tổng gốc còn lại (Vay + Nợ) + Tổng đang cho mượn -->
@@ -223,7 +221,12 @@
                                     <div>
                                         <label for="amount" class="block text-sm font-medium text-gray-700">Số tiền</label>
                                         <div class="mt-1 relative rounded-md shadow-sm">
-                                            <input type="number" name="amount" id="amount" x-model="paymentAmount" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md py-2 border" placeholder="0">
+                                            <input type="text" inputmode="numeric" name="amount" id="amount"
+                                                class="money-input focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md py-2 border"
+                                                x-init="$el.__moneyAlpine = true"
+                                                :value="$money.format(paymentAmount)"
+                                                @input="$money.onInput($event.target, v => paymentAmount = v)"
+                                                placeholder="0">
                                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                                 <span class="text-gray-500 sm:text-sm">VND</span>
                                             </div>
@@ -277,7 +280,12 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
-                            <input type="number" name="amount" x-model="paymentAmount" min="0" step="1" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+                            <input type="text" inputmode="numeric" name="amount"
+                                class="money-input mt-1 w-full rounded-md border border-gray-300 p-2"
+                                x-init="$el.__moneyAlpine = true"
+                                :value="$money.format(paymentAmount)"
+                                @input="$money.onInput($event.target, v => paymentAmount = v)"
+                                placeholder="0">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Ngày</label>
@@ -296,6 +304,20 @@
             </div>
         </div>
     </div>
+
+    {{-- Floating create button --}}
+    <a href="{{ route('loans.create') }}"
+       x-show="!paymentModalOpen && !settleModalOpen"
+       class="fixed z-40 right-4 md:right-8 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-8
+              inline-flex items-center justify-center w-14 h-14 rounded-full
+              bg-indigo-600 text-white shadow-lg shadow-indigo-600/30
+              hover:bg-indigo-700 active:scale-95 transition
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+       aria-label="Tạo khoản vay mới">
+        <svg class="w-7 h-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+    </a>
 </div>
 @endsection
 

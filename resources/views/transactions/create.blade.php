@@ -75,7 +75,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
-                        <input type="number" name="amount" x-model="amount" min="1" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
                     </div>
                 </div>
                 <div>
@@ -112,7 +112,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Số tiền điều chỉnh (₫)</label>
-                    <input type="number" name="amount" x-model="amount" min="1" step="1" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Lý do</label>
@@ -148,11 +148,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Số tiền chuyển (₫)</label>
-                        <input type="number" name="amount" x-model="amount" min="1" step="1" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Phí (₫)</label>
-                        <input type="number" name="fee" x-model="fee" min="0" step="1" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <x-money-input name="fee" alpine-model="fee" class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
                     </div>
                 </div>
                 <p class="text-xs text-gray-600">Ví nguồn trừ: <span class="font-semibold" x-text="formatMoney((Number(amount)||0) + (Number(fee)||0))"></span></p>

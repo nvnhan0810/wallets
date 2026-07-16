@@ -149,6 +149,62 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        window.MoneyInput = {
+            parse(value) {
+                const digits = String(value ?? '').replace(/\D/g, '');
+                return digits ? parseInt(digits, 10) : 0;
+            },
+            format(value) {
+                const n = this.parse(value);
+                if (!n) return '';
+                return new Intl.NumberFormat('vi-VN').format(n);
+            },
+            onInput(el, callback) {
+                const raw = this.parse(el.value);
+                el.value = raw ? this.format(raw) : '';
+                callback(raw);
+            },
+            initElement(el) {
+                if (el.__moneyAlpine || el.dataset.moneyInit) return;
+                el.dataset.moneyInit = '1';
+                el.type = 'text';
+                el.setAttribute('inputmode', 'numeric');
+                if (el.value) el.value = this.format(el.value);
+                el.addEventListener('input', () => {
+                    const raw = this.parse(el.value);
+                    el.value = raw ? this.format(raw) : '';
+                });
+            },
+            initAll() {
+                document.querySelectorAll('input.money-input').forEach(el => this.initElement(el));
+            },
+        };
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.magic('money', () => ({
+                format(n) {
+                    const num = Number(n) || 0;
+                    if (!num) return '';
+                    return new Intl.NumberFormat('vi-VN').format(num);
+                },
+                onInput(el, callback) {
+                    window.MoneyInput.onInput(el, callback);
+                },
+            }));
+        });
+
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+            form.querySelectorAll('input.money-input').forEach((el) => {
+                if (!String(el.value).trim()) {
+                    el.value = '';
+                    return;
+                }
+                el.value = String(window.MoneyInput.parse(el.value));
+            });
+        }, true);
+
         function initDatepickers() {
             document.querySelectorAll('.datepicker:not(.flatpickr-input)').forEach(function(el) {
                 if (el._flatpickr) return;
@@ -163,8 +219,16 @@
                 });
             });
         }
-        document.addEventListener('DOMContentLoaded', initDatepickers);
-        document.addEventListener('click', function() { setTimeout(initDatepickers, 100); });
+        document.addEventListener('DOMContentLoaded', () => {
+            initDatepickers();
+            window.MoneyInput.initAll();
+        });
+        document.addEventListener('click', function() {
+            setTimeout(() => {
+                initDatepickers();
+                window.MoneyInput.initAll();
+            }, 100);
+        });
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch(function() {});
         }

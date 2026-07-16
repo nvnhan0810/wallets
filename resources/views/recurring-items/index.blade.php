@@ -25,7 +25,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
-            <input type="number" name="amount" value="{{ old('amount') }}" min="1" required class="mt-1 w-full rounded-md border border-gray-300 p-2">
+            <x-money-input name="amount" :value="old('amount')" required class="mt-1 w-full rounded-md border border-gray-300 p-2" />
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700">Ví</label>
@@ -67,7 +67,7 @@
             </div>
             <div>
                 <label class="text-xs text-gray-500">Số tiền</label>
-                <input type="number" name="amount" value="{{ $item->amount }}" class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm">
+                <x-money-input name="amount" :value="$item->amount" class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
             </div>
             <div>
                 <label class="text-xs text-gray-500">Ví</label>
