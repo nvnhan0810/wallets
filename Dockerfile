@@ -94,6 +94,7 @@ COPY --from=vendor /app/config ./config
 COPY --from=vendor /app/database ./database
 COPY --from=vendor /app/routes ./routes
 COPY --from=vendor /app/resources ./resources
+COPY --from=vendor /app/src ./src
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=vendor /app/artisan ./artisan
 COPY --from=vendor /app/composer.json ./composer.json
