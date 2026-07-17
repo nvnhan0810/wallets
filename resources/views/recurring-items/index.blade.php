@@ -40,6 +40,14 @@
             <input type="number" name="day_of_month" value="{{ old('day_of_month', 1) }}" min="1" max="31" required class="mt-1 w-full rounded-md border border-gray-300 p-2">
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700">Bắt đầu từ <span class="text-gray-400">(tùy chọn)</span></label>
+            <input type="date" name="effective_from" value="{{ old('effective_from') }}" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Kết thúc <span class="text-gray-400">(tùy chọn)</span></label>
+            <input type="date" name="ends_at" value="{{ old('ends_at') }}" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+        </div>
+        <div>
             <label class="block text-sm font-medium text-gray-700">Ghi chú</label>
             <input type="text" name="note" value="{{ old('note') }}" class="mt-1 w-full rounded-md border border-gray-300 p-2">
         </div>
@@ -80,6 +88,14 @@
             <div>
                 <label class="text-xs text-gray-500">Ngày</label>
                 <input type="number" name="day_of_month" value="{{ $item->day_of_month }}" min="1" max="31" class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">Bắt đầu</label>
+                <input type="date" name="effective_from" value="{{ optional($item->effective_from)->toDateString() }}" class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">Kết thúc</label>
+                <input type="date" name="ends_at" value="{{ optional($item->ends_at)->toDateString() }}" class="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm">
             </div>
             <div class="flex flex-wrap gap-2 items-center">
                 <label class="flex items-center gap-1 text-xs text-gray-600">

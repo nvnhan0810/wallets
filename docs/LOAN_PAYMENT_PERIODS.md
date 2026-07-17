@@ -35,11 +35,14 @@ Thêm vào crontab user chạy web (mỗi phút gọi scheduler Laravel):
 * * * * * cd /opt/apps/debt.nvnhan0810.com && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Scheduler chạy lệnh (mỗi ngày 06:00):
+Scheduler chạy lệnh (mỗi ngày 07:00):
 
 ```bash
-php artisan loans:sync-payment-periods
+php artisan finance:process-reminders
 ```
+
+> Lệnh gộp: cập nhật trạng thái kỳ vay + kỳ thu/chi cố định và gửi Telegram nhắc.
+> (Lệnh cũ `loans:sync-payment-periods` đã bị bỏ khi tách recurring khỏi khoản vay.)
 
 Chạy tay:
 
@@ -47,16 +50,19 @@ Chạy tay:
 cd /opt/apps/debt.nvnhan0810.com
 php artisan migrate
 php artisan view:clear
-php artisan loans:sync-payment-periods
+php artisan finance:process-reminders
 ```
 
 ## Migration
 
 `2026_05_20_000001_loan_payment_periods.php`
 
-- `loans.payment_day`, `loans.recurring_item_id`
-- `recurring_items.loan_id`
+- `loans.payment_day`
 - `payments.kind`, `period_due_date`, `schedule_month_index`, `reduces_principal`
+
+`2026_07_17_000020_decouple_recurring_from_loans.php` (tách recurring khỏi vay)
+
+- Drop `loans.recurring_item_id`, `recurring_items.loan_id`
 
 ## Files đã chỉnh
 
@@ -64,9 +70,9 @@ php artisan loans:sync-payment-periods
 |------|----------|
 | `config/loans.php` | Ngày bắt đầu bắt buộc TT để trừ gốc |
 | `app/Services/LoanPaymentScheduleService.php` | Kỳ, TT trước, timeline, sync recurring |
-| `app/Services/LoanPaymentReminderService.php` | Nhắc vay + lọc đã TT trước |
-| `app/Console/Commands/SyncLoanPaymentPeriodsCommand.php` | Cron sync |
-| `routes/console.php` | `Schedule::command(...)` |
+| `app/Services/LoanPaymentReminderService.php` | Nhắc vay (theo kỳ) |
+| `app/Console/Commands/ProcessRemindersCommand.php` | Cron gộp `finance:process-reminders` (vay + thu/chi) |
+| `routes/console.php` | `Schedule::command('finance:process-reminders')` |
 | `app/Http/Controllers/LoanController.php` | store/storePayment/show/index |
 | `app/Http/Controllers/DashboardController.php` | Nhắc khoản vay |
 | `app/Services/RecurringItemService.php` | Ẩn nhắc nếu đã TT trước |

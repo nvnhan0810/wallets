@@ -5,7 +5,6 @@ namespace Wallets\Lending\Application;
 use App\Models\Loan;
 use App\Models\LoanCustomSchedule;
 use Carbon\Carbon;
-use Wallets\Lending\Domain\AmortizationCalculator;
 
 /**
  * Vật chất hóa lịch kỳ trả vào bảng loan_custom_schedules cho khoản vay ngân hàng.
@@ -14,7 +13,7 @@ use Wallets\Lending\Domain\AmortizationCalculator;
 class LoanScheduleGenerator
 {
     public function __construct(
-        private readonly AmortizationCalculator $amortization,
+        private readonly AmortizationService $amortization,
         private readonly LoanPaymentScheduleService $paymentSchedule,
     ) {}
 

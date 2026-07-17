@@ -3,34 +3,59 @@
 namespace Wallets\RecurringPlanning\Application;
 
 use App\Models\RecurringItem;
+use App\Models\RecurringOccurrence;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Wallets\Lending\Application\LoanPaymentReminderService;
 
 class RecurringItemService
 {
-    public function __construct(private LoanPaymentReminderService $loanReminders) {}
+    public function __construct(
+        private readonly RecurringOccurrenceGenerator $generator,
+        private readonly RecurringOccurrenceStateService $stateService,
+    ) {}
 
+    /**
+     * Kỳ thu/chi sắp/đang tới hạn dựa trên recurring_occurrences (gồm cả kỳ quá hạn).
+     * Sinh kỳ còn thiếu + cập nhật trạng thái trước khi lấy.
+     *
+     * @return Collection<int, object>
+     */
     public function upcoming(int $userId, int $withinDays, ?Carbon $from = null): Collection
     {
         $from = ($from ?? Carbon::today())->copy()->startOfDay();
-        $until = $from->copy()->addDays($withinDays);
+        $horizon = $from->copy()->addDays($withinDays);
 
-        return RecurringItem::query()
+        RecurringItem::query()
             ->forUser($userId)
             ->active()
-            ->with(['wallet', 'loan'])
             ->get()
-            ->map(function (RecurringItem $item) use ($from) {
-                $dueDate = $item->nextDueDate($from);
-                $item->due_date = $dueDate;
-                $item->days_until = (int) $from->diffInDays($dueDate, false);
-                $item->insufficient_funds = $item->isInsufficientFunds();
+            ->each(fn (RecurringItem $item) => $this->generator->ensure($item, $horizon));
 
-                return $item;
+        $this->stateService->transitionStatuses($userId);
+
+        return $this->stateService->upcomingOccurrences($userId, $withinDays)
+            ->map(function (RecurringOccurrence $occ) use ($from) {
+                $item = $occ->recurringItem;
+                $wallet = $item?->wallet;
+
+                $insufficient = false;
+                if ($item && $item->type === 'expense' && $wallet) {
+                    $insufficient = $wallet->spendableBalance() < (float) $occ->expected_amount;
+                }
+
+                return (object) [
+                    'occurrence_id' => $occ->id,
+                    'item_id' => $occ->recurring_item_id,
+                    'name' => $item?->name ?? 'Khoản cố định',
+                    'type' => $item?->type ?? 'expense',
+                    'type_label' => $item?->typeLabel() ?? 'Chi cố định',
+                    'amount' => (float) $occ->expected_amount,
+                    'due_date' => $occ->due_date,
+                    'days_until' => (int) $from->diffInDays($occ->due_date, false),
+                    'insufficient_funds' => $insufficient,
+                    'wallet' => $wallet,
+                ];
             })
-            ->filter(fn (RecurringItem $item) => $item->due_date->lte($until))
-            ->pipe(fn ($items) => $this->loanReminders->filterRecurringWithEarlyCoverage($items))
             ->sortBy('due_date')
             ->values();
     }

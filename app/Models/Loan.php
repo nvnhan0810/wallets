@@ -25,7 +25,6 @@ class Loan extends Model
         'started_at',
         'is_settled',
         'wallet_id',
-        'recurring_item_id',
     ];
 
     protected $casts = [
@@ -53,11 +52,6 @@ class Loan extends Model
     public function periods(): HasMany
     {
         return $this->hasMany(LoanCustomSchedule::class)->orderBy('month_index');
-    }
-
-    public function recurringItem(): BelongsTo
-    {
-        return $this->belongsTo(RecurringItem::class);
     }
 
     public function isBankLoan(): bool

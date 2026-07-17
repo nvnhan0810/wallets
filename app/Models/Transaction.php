@@ -23,7 +23,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'user_id',
-                'wallet_id',
+        'wallet_id',
         'type',
         'adjustment_direction',
         'amount',
@@ -35,6 +35,8 @@ class Transaction extends Model
         'loan_id',
         'loan_payment_id',
         'wallet_transfer_id',
+        'recurring_item_id',
+        'recurring_occurrence_id',
     ];
 
     protected $casts = [
@@ -65,6 +67,16 @@ class Transaction extends Model
     public function walletTransfer(): BelongsTo
     {
         return $this->belongsTo(WalletTransfer::class);
+    }
+
+    public function recurringItem(): BelongsTo
+    {
+        return $this->belongsTo(RecurringItem::class);
+    }
+
+    public function recurringOccurrence(): BelongsTo
+    {
+        return $this->belongsTo(RecurringOccurrence::class);
     }
 
     public function isFromLoan(): bool

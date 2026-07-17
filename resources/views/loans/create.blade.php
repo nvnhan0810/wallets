@@ -138,13 +138,6 @@
                                 <p class="text-xs text-gray-500 mt-1">Thanh toán trước ngày này không trừ gốc. Từ 06/2026 chỉ TT đúng kỳ mới trừ gốc.</p>
                             </div>
 
-                            <div class="col-span-6">
-                                <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" name="link_recurring" value="1" x-model="linkRecurring" class="rounded border-gray-300 text-indigo-600">
-                                    Tạo khoản <strong>chi cố định</strong> gắn với khoản vay (nhắc dashboard)
-                                </label>
-                            </div>
-
                             <!-- Custom schedule input -->
                             <div class="col-span-6" x-show="calculationMethod === 'custom'">
                                 <div class="flex items-center justify-between mb-2">
@@ -313,10 +306,6 @@
                             <dt class="text-gray-500">Ngày TT cố định</dt>
                             <dd class="font-medium text-gray-900 text-right">Ngày <span x-text="paymentDay"></span></dd>
                         </div>
-                        <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
-                            <dt class="text-gray-500">Chi cố định</dt>
-                            <dd class="font-medium text-gray-900 text-right" x-text="linkRecurring ? 'Có' : 'Không'"></dd>
-                        </div>
                     </dl>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
@@ -352,7 +341,6 @@
             recordCashFlow: true,
             receivedAmount: 0,
             receivedTouched: false,
-            linkRecurring: true,
             confirmOpen: false,
             submitting: false,
             customSchedule: [],

@@ -10,7 +10,6 @@ final class CreateLoan implements Command
         public readonly int $userId,
         public readonly array $data,
         public readonly bool $recordCashFlow = false,
-        public readonly bool $linkRecurring = true,
         public readonly array $customSchedule = [],
         public readonly ?float $receivedAmount = null,
     ) {}

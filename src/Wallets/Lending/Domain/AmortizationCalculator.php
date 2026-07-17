@@ -2,59 +2,44 @@
 
 namespace Wallets\Lending\Domain;
 
-use App\Models\Holiday;
-use App\Models\LoanCustomSchedule;
-use Carbon\Carbon;
-use Illuminate\Support\Collection;
+use DateTimeImmutable;
 
+/**
+ * Tính lịch trả góp thuần nghiệp vụ — KHÔNG phụ thuộc Laravel/Carbon/Eloquent.
+ * Dữ liệu ngoài (ngày nghỉ, lịch tùy chỉnh) được tầng application bơm vào.
+ *
+ * Mỗi dòng trả về là mảng:
+ *   month_index, date (DateTimeImmutable), theoretical_date (DateTimeImmutable),
+ *   is_adjusted, days, payment, interest, principal, [fee], remaining_principal
+ */
 final class AmortizationCalculator
 {
+    private const SATURDAY = 6;
+
+    private const SUNDAY = 0;
+
+    /**
+     * @param  list<array{month_index:int,due_date:?string,payment:?float,principal:float,interest:float,fee?:float}>  $customRows  lịch tùy chỉnh (method='custom')
+     * @param  list<string>  $holidays  danh sách ngày nghỉ dạng 'Y-m-d' (method='daily')
+     * @return list<array<string,mixed>>
+     */
     public function calculate(
-        $loanId,
-        $principal,
-        $annualRate,
-        $months,
-        $startDate,
-        $fixedMonthlyPayment = null,
-        $method = 'monthly',
-    ): Collection {
-        $balance = $principal;
-        $schedule = collect([]);
-        $prevDate = Carbon::parse($startDate);
-
+        float $principal,
+        float $annualRate,
+        int $months,
+        DateTimeImmutable $startDate,
+        ?float $fixedMonthlyPayment = null,
+        string $method = 'monthly',
+        array $customRows = [],
+        array $holidays = [],
+    ): array {
         if ($method === 'custom') {
-            $rows = LoanCustomSchedule::where('loan_id', $loanId)->orderBy('month_index')->get();
-            if ($rows->isEmpty()) {
-                return $schedule;
-            }
-
-            $balance = $principal;
-            $result = [];
-            foreach ($rows as $row) {
-                $planned = $row->due_date ?? $row->paid_at;
-                $date = $planned ? Carbon::parse($planned) : Carbon::now();
-                $principalPayment = (float) $row->principal;
-                $interest = (float) $row->interest;
-                $fee = (float) ($row->fee ?? 0);
-                $payment = $row->payment ?? ($principalPayment + $interest + $fee);
-                $balance = max($balance - $principalPayment, 0);
-
-                $result[] = [
-                    'month_index' => $row->month_index,
-                    'date' => $date,
-                    'theoretical_date' => $date,
-                    'is_adjusted' => false,
-                    'days' => null,
-                    'payment' => $payment,
-                    'interest' => $interest,
-                    'principal' => $principalPayment,
-                    'fee' => $fee,
-                    'remaining_principal' => $balance,
-                ];
-            }
-
-            return collect($result);
+            return $this->buildCustomSchedule($principal, $customRows);
         }
+
+        $balance = $principal;
+        $schedule = [];
+        $prevDate = $startDate;
 
         if (! $fixedMonthlyPayment) {
             $monthlyRate = ($annualRate / 100) / 12;
@@ -62,18 +47,18 @@ final class AmortizationCalculator
         }
 
         for ($i = 1; $i <= $months; $i++) {
-            $theoreticalDate = Carbon::parse($startDate)->addMonths($i);
+            $theoreticalDate = $startDate->modify("+{$i} months");
             $actualDate = $method === 'daily'
-                ? $this->adjustForNonWorkingDays($theoreticalDate)
-                : $theoreticalDate->copy();
+                ? $this->adjustForNonWorkingDays($theoreticalDate, $holidays)
+                : $theoreticalDate;
 
             if ($method === 'daily') {
-                $days = $prevDate->diffInDays($actualDate);
+                $days = $this->diffInDays($prevDate, $actualDate);
                 $interest = round($balance * ($annualRate / 100) * $days / 365, 0);
             } else {
                 $monthlyRate = ($annualRate / 100) / 12;
                 $interest = round($balance * $monthlyRate, 0);
-                $days = $prevDate->diffInDays($actualDate);
+                $days = $this->diffInDays($prevDate, $actualDate);
             }
 
             $payment = round($fixedMonthlyPayment, 0);
@@ -94,17 +79,17 @@ final class AmortizationCalculator
                 $balance = 0;
             }
 
-            $schedule->push([
+            $schedule[] = [
                 'month_index' => $i,
-                'date' => $actualDate->copy(),
-                'theoretical_date' => $theoreticalDate->copy(),
-                'is_adjusted' => ! $theoreticalDate->isSameDay($actualDate),
+                'date' => $actualDate,
+                'theoretical_date' => $theoreticalDate,
+                'is_adjusted' => ! $this->isSameDay($theoreticalDate, $actualDate),
                 'days' => $days,
                 'payment' => $payment,
                 'interest' => $interest,
                 'principal' => $principalPayment,
                 'remaining_principal' => $balance,
-            ]);
+            ];
 
             $prevDate = $actualDate;
         }
@@ -112,22 +97,61 @@ final class AmortizationCalculator
         return $schedule;
     }
 
-    public function adjustForNonWorkingDays($date)
+    /**
+     * @param  list<array{month_index:int,due_date:?string,payment:?float,principal:float,interest:float,fee?:float}>  $customRows
+     * @return list<array<string,mixed>>
+     */
+    private function buildCustomSchedule(float $principal, array $customRows): array
     {
-        static $holidays = null;
-        if ($holidays === null) {
-            $holidays = Holiday::pluck('date')->map(fn ($d) => $d->format('Y-m-d'))->toArray();
+        if ($customRows === []) {
+            return [];
         }
 
-        $adjustedDate = $date->copy();
+        $balance = $principal;
+        $result = [];
+
+        foreach ($customRows as $row) {
+            $date = ! empty($row['due_date'])
+                ? new DateTimeImmutable($row['due_date'])
+                : new DateTimeImmutable('now');
+
+            $principalPayment = (float) $row['principal'];
+            $interest = (float) $row['interest'];
+            $fee = (float) ($row['fee'] ?? 0);
+            $payment = $row['payment'] ?? ($principalPayment + $interest + $fee);
+            $balance = max($balance - $principalPayment, 0);
+
+            $result[] = [
+                'month_index' => $row['month_index'],
+                'date' => $date,
+                'theoretical_date' => $date,
+                'is_adjusted' => false,
+                'days' => null,
+                'payment' => $payment,
+                'interest' => $interest,
+                'principal' => $principalPayment,
+                'fee' => $fee,
+                'remaining_principal' => $balance,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<string>  $holidays
+     */
+    private function adjustForNonWorkingDays(DateTimeImmutable $date, array $holidays): DateTimeImmutable
+    {
+        $adjusted = $date;
         $iterations = 0;
 
         while ($iterations < 10) {
-            $dayOfWeek = $adjustedDate->dayOfWeek;
-            $dateString = $adjustedDate->format('Y-m-d');
+            $dayOfWeek = (int) $adjusted->format('w');
+            $dateString = $adjusted->format('Y-m-d');
 
-            if ($dayOfWeek == Carbon::SATURDAY || $dayOfWeek == Carbon::SUNDAY || in_array($dateString, $holidays)) {
-                $adjustedDate->addDay();
+            if ($dayOfWeek === self::SATURDAY || $dayOfWeek === self::SUNDAY || in_array($dateString, $holidays, true)) {
+                $adjusted = $adjusted->modify('+1 day');
                 $iterations++;
 
                 continue;
@@ -136,6 +160,16 @@ final class AmortizationCalculator
             break;
         }
 
-        return $adjustedDate;
+        return $adjusted;
+    }
+
+    private function diffInDays(DateTimeImmutable $from, DateTimeImmutable $to): int
+    {
+        return (int) $from->diff($to)->days;
+    }
+
+    private function isSameDay(DateTimeImmutable $a, DateTimeImmutable $b): bool
+    {
+        return $a->format('Y-m-d') === $b->format('Y-m-d');
     }
 }

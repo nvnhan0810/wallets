@@ -36,7 +36,6 @@ class CreateLoanTest extends TestCase
                 'wallet_id' => $wallet->id,
             ],
             recordCashFlow: true,
-            linkRecurring: false,
         ));
 
         $this->assertNotEmpty($result['loan']->id);

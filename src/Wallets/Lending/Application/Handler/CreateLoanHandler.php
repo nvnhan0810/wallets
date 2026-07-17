@@ -8,7 +8,6 @@ use App\Models\Wallet;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Wallets\Lending\Application\Command\CreateLoan;
-use Wallets\Lending\Application\LoanPaymentScheduleService;
 use Wallets\Lending\Application\LoanScheduleGenerator;
 use Wallets\Lending\Application\LoanWalletService;
 use Wallets\Shared\Application\Command;
@@ -18,7 +17,6 @@ final class CreateLoanHandler implements CommandHandler
 {
     public function __construct(
         private readonly LoanWalletService $loanWallet,
-        private readonly LoanPaymentScheduleService $paymentSchedule,
         private readonly LoanScheduleGenerator $scheduleGenerator,
     ) {}
 
@@ -67,10 +65,6 @@ final class CreateLoanHandler implements CommandHandler
                 && Carbon::parse($data['started_at'])->isToday()) {
                 $wallet = Wallet::query()->forUser($command->userId)->findOrFail($data['wallet_id']);
                 $this->loanWallet->recordCreation($loan, $wallet, $command->receivedAmount);
-            }
-
-            if ($loan->type === 'bank' && $command->linkRecurring) {
-                $this->paymentSchedule->syncRecurringItem($loan->fresh());
             }
 
             return $loan;

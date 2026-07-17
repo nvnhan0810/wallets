@@ -50,7 +50,6 @@ class LoanScheduleTest extends TestCase
                 'payment_day' => 15,
             ],
             recordCashFlow: $recordCashFlow,
-            linkRecurring: false,
             receivedAmount: $received,
         ));
     }

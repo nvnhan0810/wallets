@@ -7,11 +7,11 @@ use App\Models\Payment;
 use App\Models\Wallet;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Wallets\Lending\Application\AmortizationService;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\LoanPaymentScheduleService;
 use Wallets\Lending\Application\LoanScheduleStateService;
 use Wallets\Lending\Application\LoanWalletService;
-use Wallets\Lending\Domain\AmortizationCalculator;
 use Wallets\Shared\Application\Command;
 use Wallets\Shared\Application\CommandHandler;
 
@@ -20,7 +20,7 @@ final class RecordLoanPaymentHandler implements CommandHandler
     public function __construct(
         private readonly LoanWalletService $loanWallet,
         private readonly LoanPaymentScheduleService $paymentSchedule,
-        private readonly AmortizationCalculator $amortization,
+        private readonly AmortizationService $amortization,
         private readonly LoanScheduleStateService $scheduleState,
     ) {}
 
@@ -76,10 +76,6 @@ final class RecordLoanPaymentHandler implements CommandHandler
 
             if (! $loan->wallet_id) {
                 $loan->update(['wallet_id' => $wallet->id]);
-            }
-
-            if ($loan->type === 'bank') {
-                $this->paymentSchedule->syncRecurringItem($loan->fresh());
             }
 
             $wasEarly = $payment->isEarly();

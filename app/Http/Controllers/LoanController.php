@@ -70,7 +70,6 @@ class LoanController extends Controller
             'months_paid' => 'nullable|integer',
             'monthly_payment' => 'nullable|numeric',
             'payment_day' => 'nullable|integer|min:1|max:31',
-            'link_recurring' => 'sometimes|boolean',
             'custom_schedule' => 'sometimes|array',
         ]);
 
@@ -108,7 +107,6 @@ class LoanController extends Controller
             userId: auth()->id(),
             data: $validated,
             recordCashFlow: $recordCashFlow,
-            linkRecurring: $request->boolean('link_recurring', true),
             customSchedule: $customRows,
             receivedAmount: $receivedAmount,
         ));

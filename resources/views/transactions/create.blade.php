@@ -24,7 +24,7 @@
         'amount' => old('amount', $prefill['amount'] ?? $selectedTemplate?->amount ?? ''),
         'fee' => old('fee', $selectedTemplate?->fee ?? 0),
         'description' => old('description', $prefill['description'] ?? $selectedTemplate?->description ?? ''),
-        'category' => old('category', $selectedTemplate?->category ?? ''),
+        'category' => old('category', $prefill['category'] ?? $selectedTemplate?->category ?? ''),
         'adjustment_direction' => old('adjustment_direction', $selectedTemplate?->adjustment_direction ?? 'increase'),
         'from_template' => (bool) ($selectedTemplate || old('transaction_template_id')),
         'save_as_template' => (bool) old('save_as_template'),
@@ -39,6 +39,8 @@
     <form action="{{ route('transactions.store') }}" method="POST" class="bg-white shadow rounded-lg p-6 space-y-4">
         @csrf
         <input type="hidden" name="transaction_template_id" :value="from_template ? template_id : ''">
+        <input type="hidden" name="recurring_item_id" value="{{ old('recurring_item_id', $prefill['recurring_item_id'] ?? '') }}">
+        <input type="hidden" name="recurring_occurrence_id" value="{{ old('recurring_occurrence_id', $prefill['recurring_occurrence_id'] ?? '') }}">
 
         <div>
             <label class="block text-sm font-medium text-gray-700">Chọn mẫu (tùy chọn)</label>
@@ -165,7 +167,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700">Ngày giao dịch</label>
-            <input type="text" name="transacted_at" value="{{ old('transacted_at', date('d/m/Y')) }}" required class="datepicker mt-1 block w-full rounded-md border border-gray-300 p-2">
+            <input type="text" name="transacted_at" value="{{ old('transacted_at', $prefill['transacted_at'] ?? date('d/m/Y')) }}" required class="datepicker mt-1 block w-full rounded-md border border-gray-300 p-2">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700">Ghi chú</label>

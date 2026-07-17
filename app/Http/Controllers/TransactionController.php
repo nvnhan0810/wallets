@@ -50,6 +50,10 @@ class TransactionController extends Controller
             'type' => in_array($request->type, ['income', 'expense', 'adjustment', 'transfer'], true) ? $request->type : 'expense',
             'amount' => $request->input('amount'),
             'description' => $request->input('description'),
+            'category' => $request->input('category'),
+            'transacted_at' => $request->input('transacted_at'),
+            'recurring_item_id' => $request->integer('recurring_item_id') ?: null,
+            'recurring_occurrence_id' => $request->integer('recurring_occurrence_id') ?: null,
         ];
 
         return view('transactions.create', compact('wallets', 'templates', 'selectedTemplate', 'prefill'));
@@ -99,6 +103,8 @@ class TransactionController extends Controller
             'transacted_at' => 'required|string',
             'note' => 'nullable|string',
             'transaction_template_id' => 'nullable|exists:transaction_templates,id',
+            'recurring_item_id' => 'nullable|exists:recurring_items,id',
+            'recurring_occurrence_id' => 'nullable|exists:recurring_occurrences,id',
             'save_as_template' => 'sometimes|boolean',
             'template_name' => 'required_if:save_as_template,1|nullable|string|max:255',
         ]);

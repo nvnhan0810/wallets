@@ -4,7 +4,6 @@ namespace Wallets\Lending\Application;
 
 use App\Models\Loan;
 use App\Models\Payment;
-use App\Models\RecurringItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -19,10 +18,6 @@ class LoanPaymentScheduleService
     {
         if ($loan->payment_day) {
             return (int) $loan->payment_day;
-        }
-
-        if ($loan->recurringItem) {
-            return (int) $loan->recurringItem->day_of_month;
         }
 
         return (int) $loan->started_at->day;
@@ -190,41 +185,5 @@ class LoanPaymentScheduleService
             ->where('kind', Payment::KIND_EARLY)
             ->whereDate('period_due_date', $dueDate->toDateString())
             ->exists();
-    }
-
-    public function syncRecurringItem(Loan $loan): void
-    {
-        if ($loan->type !== 'bank' || ! $loan->wallet_id || ! $loan->monthly_payment) {
-            return;
-        }
-
-        $day = $this->paymentDay($loan);
-        $name = 'Trả vay: '.$loan->name;
-
-        if ($loan->recurringItem) {
-            $loan->recurringItem->update([
-                'name' => $name,
-                'amount' => $loan->monthly_payment,
-                'wallet_id' => $loan->wallet_id,
-                'day_of_month' => $day,
-                'type' => 'expense',
-            ]);
-
-            return;
-        }
-
-        $recurring = RecurringItem::create([
-            'user_id' => $loan->user_id,
-            'name' => $name,
-            'type' => 'expense',
-            'amount' => $loan->monthly_payment,
-            'wallet_id' => $loan->wallet_id,
-            'day_of_month' => $day,
-            'loan_id' => $loan->id,
-            'is_active' => true,
-            'note' => 'Tự động từ khoản vay #'.$loan->id,
-        ]);
-
-        $loan->update(['recurring_item_id' => $recurring->id]);
     }
 }

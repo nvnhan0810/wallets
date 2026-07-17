@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RecurringItem extends Model
 {
@@ -19,12 +20,13 @@ class RecurringItem extends Model
 
     protected $fillable = [
         'user_id',
-                'name',
+        'name',
         'type',
         'amount',
         'wallet_id',
-        'loan_id',
         'day_of_month',
+        'effective_from',
+        'ends_at',
         'is_active',
         'note',
     ];
@@ -32,6 +34,8 @@ class RecurringItem extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'is_active' => 'boolean',
+        'effective_from' => 'date',
+        'ends_at' => 'date',
     ];
 
     public function wallet(): BelongsTo
@@ -39,9 +43,9 @@ class RecurringItem extends Model
         return $this->belongsTo(Wallet::class);
     }
 
-    public function loan(): BelongsTo
+    public function occurrences(): HasMany
     {
-        return $this->belongsTo(Loan::class);
+        return $this->hasMany(RecurringOccurrence::class);
     }
 
     public function scopeActive(Builder $query): Builder

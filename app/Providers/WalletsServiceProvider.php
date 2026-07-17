@@ -20,13 +20,11 @@ use Wallets\Identity\Application\Query\IsEmailAllowed;
 use Wallets\Lending\Application\Command\CreateLoan;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\Command\SettleLoan;
-use Wallets\Lending\Application\Command\SyncLoanPaymentPeriods;
 use Wallets\Lending\Application\Handler\CreateLoanHandler;
 use Wallets\Lending\Application\Handler\GetLoanDetailHandler;
 use Wallets\Lending\Application\Handler\ListActiveLoansHandler;
 use Wallets\Lending\Application\Handler\RecordLoanPaymentHandler;
 use Wallets\Lending\Application\Handler\SettleLoanHandler;
-use Wallets\Lending\Application\Handler\SyncLoanPaymentPeriodsHandler;
 use Wallets\Lending\Application\Query\GetLoanDetail;
 use Wallets\Lending\Application\Query\ListActiveLoans;
 use Wallets\Preferences\Application\Command\UpdateSettings;
@@ -101,7 +99,6 @@ class WalletsServiceProvider extends ServiceProvider
             CreateLoan::class => CreateLoanHandler::class,
             RecordLoanPayment::class => RecordLoanPaymentHandler::class,
             SettleLoan::class => SettleLoanHandler::class,
-            SyncLoanPaymentPeriods::class => SyncLoanPaymentPeriodsHandler::class,
             CreateRecurringItem::class => CreateRecurringItemHandler::class,
             UpdateRecurringItem::class => UpdateRecurringItemHandler::class,
             DeleteRecurringItem::class => DeleteRecurringItemHandler::class,

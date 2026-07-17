@@ -69,9 +69,6 @@ final class GetDashboardOverviewHandler implements QueryHandler
 
     private function buildUpcomingReminders($upcomingLoanPayments, $upcomingRecurring): Collection
     {
-        $loanIds = $upcomingLoanPayments->pluck('id');
-        $loanRecurringIds = $upcomingLoanPayments->pluck('recurring_item_id')->filter();
-
         $reminders = $upcomingLoanPayments->map(fn (Loan $loan) => (object) [
             'kind' => 'loan',
             'name' => $loan->name,
@@ -92,9 +89,8 @@ final class GetDashboardOverviewHandler implements QueryHandler
         ]);
 
         foreach ($upcomingRecurring as $item) {
-            if ($item->loan_id && ($loanIds->contains($item->loan_id) || $loanRecurringIds->contains($item->id))) {
-                continue;
-            }
+            $overdue = ($item->days_until ?? 0) < 0;
+            $typeLabel = $item->type_label.($overdue ? ' · Quá hạn '.abs($item->days_until).' ngày' : '');
 
             $reminders->push((object) [
                 'kind' => 'recurring',
@@ -102,12 +98,22 @@ final class GetDashboardOverviewHandler implements QueryHandler
                 'amount' => (float) $item->amount,
                 'due_date' => $item->due_date,
                 'days_until' => $item->days_until,
-                'type_label' => $item->typeLabel(),
-                'type_badge_class' => $item->type === 'income' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800',
+                'type_label' => $typeLabel,
+                'type_badge_class' => $overdue
+                    ? 'bg-red-100 text-red-800'
+                    : ($item->type === 'income' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'),
                 'insufficient_funds' => $item->insufficient_funds,
                 'wallet' => $item->wallet,
                 'loan' => null,
-                'pay_url' => null,
+                'pay_url' => route('transactions.create', array_filter([
+                    'type' => $item->type,
+                    'wallet_id' => $item->wallet?->id,
+                    'amount' => $item->amount,
+                    'description' => $item->name,
+                    'transacted_at' => $item->due_date?->format('d/m/Y'),
+                    'recurring_item_id' => $item->item_id,
+                    'recurring_occurrence_id' => $item->occurrence_id,
+                ])),
                 'recurring' => $item,
             ]);
         }

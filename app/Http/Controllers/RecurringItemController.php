@@ -35,6 +35,8 @@ class RecurringItemController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'wallet_id' => 'required|exists:wallets,id',
             'day_of_month' => 'required|integer|min:1|max:31',
+            'effective_from' => 'nullable|date',
+            'ends_at' => 'nullable|date|after_or_equal:effective_from',
             'note' => 'nullable|string',
         ]);
 
@@ -54,6 +56,8 @@ class RecurringItemController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'wallet_id' => 'required|exists:wallets,id',
             'day_of_month' => 'required|integer|min:1|max:31',
+            'effective_from' => 'nullable|date',
+            'ends_at' => 'nullable|date|after_or_equal:effective_from',
             'note' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
         ]);

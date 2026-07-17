@@ -3,9 +3,9 @@
 namespace Wallets\Lending\Application\Handler;
 
 use App\Models\Loan;
+use Wallets\Lending\Application\AmortizationService;
 use Wallets\Lending\Application\LoanPaymentScheduleService;
 use Wallets\Lending\Application\Query\GetLoanDetail;
-use Wallets\Lending\Domain\AmortizationCalculator;
 use Wallets\Shared\Application\Query;
 use Wallets\Shared\Application\QueryHandler;
 
@@ -13,7 +13,7 @@ final class GetLoanDetailHandler implements QueryHandler
 {
     public function __construct(
         private readonly LoanPaymentScheduleService $paymentSchedule,
-        private readonly AmortizationCalculator $amortization,
+        private readonly AmortizationService $amortization,
     ) {}
 
     public function handle(Query $query): mixed
@@ -22,7 +22,7 @@ final class GetLoanDetailHandler implements QueryHandler
 
         $loan = Loan::query()
             ->forUser($query->userId)
-            ->with(['payments.transaction', 'wallet', 'recurringItem'])
+            ->with(['payments.transaction', 'wallet'])
             ->findOrFail($query->loanId);
 
         $schedule = collect([]);

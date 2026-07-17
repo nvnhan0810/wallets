@@ -194,7 +194,7 @@
             @if($reminder->kind === 'loan')
                 <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Thanh toán →</a>
             @else
-                <a href="{{ route('transactions.create', ['wallet_id' => $reminder->recurring->wallet_id, 'type' => $reminder->recurring->type, 'amount' => $reminder->recurring->amount, 'description' => $reminder->recurring->name]) }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Ghi giao dịch →</a>
+                <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Ghi giao dịch →</a>
             @endif
         </div>
         @endforeach

@@ -2,7 +2,6 @@
 
 namespace Wallets\Lending\Application;
 
-use App\Models\RecurringItem;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -48,18 +47,5 @@ class LoanPaymentReminderService
             ->filter()
             ->sortBy('payment_due_date')
             ->values();
-    }
-
-    public function filterRecurringWithEarlyCoverage(Collection $recurringItems): Collection
-    {
-        return $recurringItems->filter(function (RecurringItem $item) {
-            if (! $item->loan_id || ! $item->loan) {
-                return true;
-            }
-
-            $due = $item->due_date ?? $item->nextDueDate();
-
-            return ! $this->scheduleService->hasEarlyPaymentForDueDate($item->loan, $due);
-        })->values();
     }
 }
