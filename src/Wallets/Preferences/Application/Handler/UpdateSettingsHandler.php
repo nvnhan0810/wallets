@@ -13,6 +13,8 @@ final class UpdateSettingsHandler implements CommandHandler
     {
         assert($command instanceof UpdateSettings);
         Setting::setForUser($command->userId, 'recurring_alert_days', $command->recurringAlertDays);
+        Setting::setForUser($command->userId, 'telegram_chat_id', $command->telegramChatId ?? '');
+        Setting::setForUser($command->userId, 'telegram_enabled', $command->telegramEnabled ? '1' : '');
 
         return null;
     }

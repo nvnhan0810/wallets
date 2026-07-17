@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\LoanPaymentScheduleService;
+use Wallets\Lending\Application\LoanScheduleStateService;
 use Wallets\Lending\Application\LoanWalletService;
 use Wallets\Lending\Domain\AmortizationCalculator;
 use Wallets\Shared\Application\Command;
@@ -20,6 +21,7 @@ final class RecordLoanPaymentHandler implements CommandHandler
         private readonly LoanWalletService $loanWallet,
         private readonly LoanPaymentScheduleService $paymentSchedule,
         private readonly AmortizationCalculator $amortization,
+        private readonly LoanScheduleStateService $scheduleState,
     ) {}
 
     public function handle(Command $command): mixed
@@ -64,10 +66,12 @@ final class RecordLoanPaymentHandler implements CommandHandler
 
             $this->loanWallet->recordPayment($loan, $payment, $wallet);
 
-            if ($loan->type === 'bank' && $payment->reduces_principal && $payment->schedule_month_index) {
-                $loan->update([
-                    'months_paid' => max((int) $loan->months_paid, (int) $payment->schedule_month_index),
-                ]);
+            if ($loan->type === 'bank') {
+                $payment->setRelation('loan', $loan);
+                $this->scheduleState->linkPaymentToPeriod(
+                    $payment,
+                    isset($data['period_id']) ? (int) $data['period_id'] : null,
+                );
             }
 
             if (! $loan->wallet_id) {

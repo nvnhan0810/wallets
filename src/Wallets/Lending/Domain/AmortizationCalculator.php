@@ -31,7 +31,8 @@ final class AmortizationCalculator
             $balance = $principal;
             $result = [];
             foreach ($rows as $row) {
-                $date = $row->paid_at ? Carbon::parse($row->paid_at) : Carbon::now();
+                $planned = $row->due_date ?? $row->paid_at;
+                $date = $planned ? Carbon::parse($planned) : Carbon::now();
                 $principalPayment = (float) $row->principal;
                 $interest = (float) $row->interest;
                 $fee = (float) ($row->fee ?? 0);

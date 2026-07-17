@@ -184,14 +184,15 @@
                         ({{ $reminder->wallet->isCreditCard() ? 'còn ' . number_format($reminder->wallet->spendableBalance(), 0) : 'số dư ' . number_format($reminder->wallet->balance, 0) }} ₫)
                     @endif
                     · Đến hạn {{ $reminder->due_date->format('d/m/Y') }}
-                    @if($reminder->days_until === 0) — <strong>Hôm nay</strong>
+                    @if($reminder->days_until < 0) — <strong class="text-red-600">Quá hạn {{ abs($reminder->days_until) }} ngày</strong>
+                    @elseif($reminder->days_until === 0) — <strong>Hôm nay</strong>
                     @elseif($reminder->days_until === 1) — <strong>Ngày mai</strong>
                     @else — Còn {{ $reminder->days_until }} ngày
                     @endif
                 </p>
             </div>
             @if($reminder->kind === 'loan')
-                <a href="{{ route('loans.show', $reminder->loan) }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Thanh toán →</a>
+                <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Thanh toán →</a>
             @else
                 <a href="{{ route('transactions.create', ['wallet_id' => $reminder->recurring->wallet_id, 'type' => $reminder->recurring->type, 'amount' => $reminder->recurring->amount, 'description' => $reminder->recurring->name]) }}" class="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">Ghi giao dịch →</a>
             @endif

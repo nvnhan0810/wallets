@@ -19,19 +19,25 @@ class SettingController extends Controller
     {
         $settings = $this->queries->ask(new GetSettings(userId: auth()->id()));
         $recurringAlertDays = $settings['recurring_alert_days'];
+        $telegramChatId = $settings['telegram_chat_id'];
+        $telegramEnabled = $settings['telegram_enabled'];
 
-        return view('settings.index', compact('recurringAlertDays'));
+        return view('settings.index', compact('recurringAlertDays', 'telegramChatId', 'telegramEnabled'));
     }
 
     public function update(Request $request)
     {
         $validated = $request->validate([
             'recurring_alert_days' => 'required|integer|min:1|max:30',
+            'telegram_chat_id' => 'nullable|string|max:64',
+            'telegram_enabled' => 'sometimes|boolean',
         ]);
 
         $this->commands->dispatch(new UpdateSettings(
             userId: auth()->id(),
             recurringAlertDays: (int) $validated['recurring_alert_days'],
+            telegramChatId: $validated['telegram_chat_id'] ?? null,
+            telegramEnabled: $request->boolean('telegram_enabled'),
         ));
 
         return redirect()->route('settings.index')->with('success', 'Đã lưu cài đặt.');

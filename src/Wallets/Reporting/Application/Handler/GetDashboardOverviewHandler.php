@@ -6,6 +6,7 @@ use App\Models\Loan;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\Wallet;
+use Illuminate\Support\Collection;
 use Wallets\Lending\Application\LoanPaymentReminderService;
 use Wallets\RecurringPlanning\Application\RecurringItemService;
 use Wallets\Reporting\Application\Query\GetDashboardOverview;
@@ -66,7 +67,7 @@ final class GetDashboardOverviewHandler implements QueryHandler
         );
     }
 
-    private function buildUpcomingReminders($upcomingLoanPayments, $upcomingRecurring): \Illuminate\Support\Collection
+    private function buildUpcomingReminders($upcomingLoanPayments, $upcomingRecurring): Collection
     {
         $loanIds = $upcomingLoanPayments->pluck('id');
         $loanRecurringIds = $upcomingLoanPayments->pluck('recurring_item_id')->filter();
@@ -74,14 +75,19 @@ final class GetDashboardOverviewHandler implements QueryHandler
         $reminders = $upcomingLoanPayments->map(fn (Loan $loan) => (object) [
             'kind' => 'loan',
             'name' => $loan->name,
-            'amount' => (float) ($loan->monthly_payment ?? 0),
+            'amount' => (float) ($loan->next_period_amount ?? $loan->monthly_payment ?? 0),
             'due_date' => $loan->payment_due_date,
             'days_until' => $loan->days_until_payment,
-            'type_label' => 'Trả khoản vay',
-            'type_badge_class' => 'bg-indigo-100 text-indigo-800',
+            'type_label' => ($loan->days_until_payment ?? 0) < 0 ? 'Trả khoản vay · Quá hạn' : 'Trả khoản vay',
+            'type_badge_class' => ($loan->days_until_payment ?? 0) < 0 ? 'bg-red-100 text-red-800' : 'bg-indigo-100 text-indigo-800',
             'insufficient_funds' => false,
             'wallet' => $loan->wallet,
             'loan' => $loan,
+            'pay_url' => route('loans.index', array_filter([
+                'pay' => $loan->id,
+                'period' => $loan->next_period_id ?? null,
+                'amount' => $loan->next_period_amount ?? null,
+            ])),
             'recurring' => null,
         ]);
 
@@ -101,6 +107,7 @@ final class GetDashboardOverviewHandler implements QueryHandler
                 'insufficient_funds' => $item->insufficient_funds,
                 'wallet' => $item->wallet,
                 'loan' => null,
+                'pay_url' => null,
                 'recurring' => $item,
             ]);
         }

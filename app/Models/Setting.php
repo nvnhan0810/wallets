@@ -30,4 +30,17 @@ class Setting extends Model
     {
         return max(1, (int) static::getForUser($userId, 'recurring_alert_days', 3));
     }
+
+    public static function telegramChatId(int $userId): ?string
+    {
+        $chatId = static::getForUser($userId, 'telegram_chat_id');
+
+        return $chatId !== null && $chatId !== '' ? (string) $chatId : null;
+    }
+
+    public static function telegramEnabled(int $userId): bool
+    {
+        return (bool) static::getForUser($userId, 'telegram_enabled', false)
+            && static::telegramChatId($userId) !== null;
+    }
 }

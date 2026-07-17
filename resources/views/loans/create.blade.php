@@ -50,27 +50,39 @@
                             </div>
                         </div>
 
-                                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
-                            <p class="text-sm font-medium text-indigo-900">Dòng tiền qua ví</p>
+                                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3" x-show="startsToday()">
+                            <p class="text-sm font-medium text-indigo-900">Dòng tiền qua ví (ngày bắt đầu là hôm nay)</p>
                             <p class="text-xs text-indigo-700" x-show="type === 'lend'">Cho mượn → chi tiền từ ví.</p>
                             <p class="text-xs text-indigo-700" x-show="type !== 'lend'">Vay / mượn → thu tiền vào ví.</p>
                             <label class="flex items-center gap-2 text-sm text-gray-700">
                                 <input type="checkbox" name="record_cash_flow" value="1" x-model="recordCashFlow" class="rounded text-indigo-600">
                                 Ghi nhận giao dịch vào ví khi tạo
                             </label>
-                            <div x-show="recordCashFlow">
-                                <label for="wallet_id" class="block text-sm font-medium text-gray-700">Ví</label>
-                                <select name="wallet_id" id="wallet_id" x-model="walletId" :required="recordCashFlow" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
-                                    <option value="">Chọn ví</option>
-                                    @foreach($wallets as $w)
-                                        <option value="{{ $w->id }}" @selected(old('wallet_id') == $w->id)>{{ $w->name }}</option>
-                                    @endforeach
-                                </select>
-                                @if($wallets->isEmpty())
-                                    <p class="mt-1 text-xs text-red-600"><a href="{{ route('wallets.create') }}" class="underline">Tạo ví</a> trước.</p>
-                                @endif
+                            <div x-show="recordCashFlow" class="space-y-3">
+                                <div>
+                                    <label for="wallet_id" class="block text-sm font-medium text-gray-700">Ví</label>
+                                    <select name="wallet_id" id="wallet_id" x-model="walletId" :required="recordCashFlow && startsToday()" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm">
+                                        <option value="">Chọn ví</option>
+                                        @foreach($wallets as $w)
+                                            <option value="{{ $w->id }}" @selected(old('wallet_id') == $w->id)>{{ $w->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @if($wallets->isEmpty())
+                                        <p class="mt-1 text-xs text-red-600"><a href="{{ route('wallets.create') }}" class="underline">Tạo ví</a> trước.</p>
+                                    @endif
+                                </div>
+                                <div>
+                                    <label for="received_amount" class="block text-sm font-medium text-gray-700" x-text="type === 'lend' ? 'Số tiền thực chi' : 'Số tiền thực nhận vào ví'"></label>
+                                    <input type="text" inputmode="numeric" name="received_amount" id="received_amount"
+                                        class="money-input mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm"
+                                        x-init="$el.__moneyAlpine = true"
+                                        :value="$money.format(receivedAmount)"
+                                        @input="$money.onInput($event.target, v => { receivedAmount = v; receivedTouched = true; })">
+                                    <p class="text-xs text-gray-500 mt-1">Mặc định bằng số tiền gốc. Có thể sửa nếu số thực nhận khác (phí, giải ngân một phần…).</p>
+                                </div>
                             </div>
                         </div>
+                        <p class="text-xs text-gray-500" x-show="!startsToday()">Ngày bắt đầu không phải hôm nay → chỉ tạo khoản vay, không tạo giao dịch ví. Ghi nhận trả khi tới kỳ.</p>
 
                         <!-- Bank Specific Fields -->
                         <div x-show="type === 'bank'" class="border-t border-gray-200 pt-4 mt-4 grid grid-cols-6 gap-6">
@@ -265,13 +277,17 @@
                             <dt class="text-gray-500">Ngày bắt đầu</dt>
                             <dd class="font-medium text-gray-900 text-right" x-text="startDate || '—'"></dd>
                         </div>
-                        <div class="flex justify-between gap-4 px-3 py-2" x-show="recordCashFlow && walletName()">
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="recordCashFlow && startsToday() && walletName()">
                             <dt class="text-gray-500">Ví</dt>
                             <dd class="font-medium text-gray-900 text-right" x-text="walletName()"></dd>
                         </div>
+                        <div class="flex justify-between gap-4 px-3 py-2" x-show="recordCashFlow && startsToday()">
+                            <dt class="text-gray-500">Số tiền vào ví</dt>
+                            <dd class="font-medium text-gray-900 text-right" x-text="formatMoney(receivedAmount)"></dd>
+                        </div>
                         <div class="flex justify-between gap-4 px-3 py-2">
                             <dt class="text-gray-500">Ghi nhận vào ví</dt>
-                            <dd class="font-medium text-gray-900 text-right" x-text="recordCashFlow ? 'Có' : 'Không'"></dd>
+                            <dd class="font-medium text-gray-900 text-right" x-text="(recordCashFlow && startsToday()) ? 'Có' : 'Không'"></dd>
                         </div>
                         <div class="flex justify-between gap-4 px-3 py-2" x-show="type === 'bank'">
                             <dt class="text-gray-500">Lãi suất</dt>
@@ -334,6 +350,8 @@
             paymentDay: {{ (int) old('payment_day', 25) }},
             walletId: '{{ old('wallet_id', '') }}',
             recordCashFlow: true,
+            receivedAmount: 0,
+            receivedTouched: false,
             linkRecurring: true,
             confirmOpen: false,
             submitting: false,
@@ -341,7 +359,12 @@
             wallets: @js($wallets->map(fn ($w) => ['id' => (string) $w->id, 'name' => $w->name])->values()),
 
             init() {
-                this.$watch('principal', () => this.calculateMonthly());
+                this.$watch('principal', (val) => {
+                    this.calculateMonthly();
+                    if (!this.receivedTouched) {
+                        this.receivedAmount = val;
+                    }
+                });
                 this.$watch('rate', () => this.calculateMonthly());
                 this.$watch('months', (newVal, oldVal) => {
                     this.calculateMonthly();
@@ -386,6 +409,18 @@
 
             methodLabel() {
                 return { monthly: 'Theo tháng', daily: 'Theo ngày (Actual/365)', custom: 'Tùy chỉnh' }[this.calculationMethod] || this.calculationMethod;
+            },
+
+            startsToday() {
+                if (!this.startDate) return false;
+                const parts = this.startDate.split('/');
+                if (parts.length !== 3) return false;
+                const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                if (isNaN(d.getTime())) return false;
+                const now = new Date();
+                return d.getFullYear() === now.getFullYear()
+                    && d.getMonth() === now.getMonth()
+                    && d.getDate() === now.getDate();
             },
 
             walletName() {

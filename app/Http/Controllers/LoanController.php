@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Loan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Wallets\Lending\Application\Command\CreateLoan;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\Command\SettleLoan;
@@ -62,6 +63,7 @@ class LoanController extends Controller
             'started_at' => 'required|string',
             'wallet_id' => 'nullable|exists:wallets,id',
             'record_cash_flow' => 'sometimes|boolean',
+            'received_amount' => 'nullable|numeric|min:0',
             'interest_rate' => 'nullable|numeric',
             'interest_calculation_method' => 'nullable|in:monthly,daily,custom',
             'term_months' => 'nullable|integer',
@@ -72,11 +74,16 @@ class LoanController extends Controller
             'custom_schedule' => 'sometimes|array',
         ]);
 
-        if ($request->boolean('record_cash_flow')) {
+        $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
+
+        // Ví và khoản vay độc lập: chỉ ghi tiền vào ví khi ngày bắt đầu là hôm nay.
+        $startsToday = Carbon::parse($validated['started_at'])->isToday();
+        $recordCashFlow = $startsToday && $request->boolean('record_cash_flow');
+
+        if ($recordCashFlow) {
             $request->validate(['wallet_id' => 'required|exists:wallets,id']);
         }
 
-        $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
         $validated['months_paid'] = $validated['months_paid'] ?? 0;
         $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
 
@@ -95,19 +102,26 @@ class LoanController extends Controller
             }
         }
 
+        $receivedAmount = $request->filled('received_amount') ? (float) $validated['received_amount'] : null;
+
         $result = $this->commands->dispatch(new CreateLoan(
             userId: auth()->id(),
             data: $validated,
-            recordCashFlow: $request->boolean('record_cash_flow'),
+            recordCashFlow: $recordCashFlow,
             linkRecurring: $request->boolean('link_recurring', true),
             customSchedule: $customRows,
+            receivedAmount: $receivedAmount,
         ));
 
         if (! empty($result['errors'])) {
             return back()->withErrors($result['errors'])->withInput();
         }
 
-        return redirect()->route('loans.index')->with('success', 'Đã tạo khoản vay và ghi nhận dòng tiền vào ví.');
+        $message = $recordCashFlow
+            ? 'Đã tạo khoản vay và ghi nhận tiền vào ví.'
+            : 'Đã tạo khoản vay. Kỳ trả sẽ nhắc khi tới hạn.';
+
+        return redirect()->route('loans.index')->with('success', $message);
     }
 
     public function storePayment(Request $request)
@@ -118,6 +132,7 @@ class LoanController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'paid_at' => 'required|string',
             'note' => 'nullable|string|max:255',
+            'period_id' => 'nullable|exists:loan_custom_schedules,id',
         ]);
 
         $validated['paid_at'] = $this->convertDateFormat($validated['paid_at']);

@@ -2,7 +2,6 @@
 
 namespace Wallets\Lending\Application;
 
-use App\Models\Loan;
 use App\Models\RecurringItem;
 use App\Models\Setting;
 use Carbon\Carbon;
@@ -10,39 +9,43 @@ use Illuminate\Support\Collection;
 
 class LoanPaymentReminderService
 {
-    public function __construct(private \Wallets\Lending\Application\LoanPaymentScheduleService $scheduleService) {}
+    public function __construct(
+        private LoanPaymentScheduleService $scheduleService,
+        private LoanScheduleStateService $stateService,
+    ) {}
 
+    /**
+     * Kỳ trả sắp/đang tới hạn (theo bảng kỳ). Gom kỳ mở sớm nhất cho mỗi khoản vay,
+     * bao gồm cả kỳ đã quá hạn (days_until âm).
+     */
     public function upcomingLoanPayments(int $userId, ?int $withinDays = null): Collection
     {
         $withinDays = $withinDays ?? Setting::recurringAlertDays($userId);
         $from = Carbon::today()->startOfDay();
-        $until = $from->copy()->addDays($withinDays);
 
-        return Loan::query()
-            ->forUser($userId)
-            ->where('is_settled', false)
-            ->where('type', 'bank')
-            ->with(['payments', 'recurringItem', 'wallet'])
-            ->get()
-            ->map(function (Loan $loan) use ($from) {
-                $due = $this->nextPaymentDueDate($loan, $from);
-                if (! $due) {
+        return $this->stateService->upcomingPeriods($userId, $withinDays)
+            ->groupBy('loan_id')
+            ->map(function (Collection $periods) use ($from) {
+                $period = $periods->sortBy('due_date')->first();
+                $loan = $period->loan;
+
+                if (! $loan || $loan->is_settled) {
                     return null;
                 }
 
-                $loan->payment_due_date = $due;
-                $loan->days_until_payment = (int) $from->diffInDays($due, false);
+                if ($this->scheduleService->hasEarlyPaymentForDueDate($loan, $period->due_date)) {
+                    return null;
+                }
+
+                $loan->setRelation('wallet', $loan->wallet);
+                $loan->payment_due_date = $period->due_date;
+                $loan->days_until_payment = (int) $from->diffInDays($period->due_date, false);
+                $loan->next_period_id = $period->id;
+                $loan->next_period_amount = (float) $period->payment;
 
                 return $loan;
             })
             ->filter()
-            ->filter(function (Loan $loan) use ($from, $until) {
-                if ($loan->payment_due_date->gt($until)) {
-                    return false;
-                }
-
-                return ! $this->scheduleService->hasEarlyPaymentForDueDate($loan, $loan->payment_due_date);
-            })
             ->sortBy('payment_due_date')
             ->values();
     }
@@ -58,21 +61,5 @@ class LoanPaymentReminderService
 
             return ! $this->scheduleService->hasEarlyPaymentForDueDate($item->loan, $due);
         })->values();
-    }
-
-    private function nextPaymentDueDate(Loan $loan, Carbon $from): ?Carbon
-    {
-        if ($loan->recurringItem) {
-            return $loan->recurringItem->nextDueDate($from);
-        }
-
-        $day = $this->scheduleService->paymentDay($loan);
-        $due = $from->copy()->day(min($day, $from->daysInMonth));
-        if ($due->lt($from)) {
-            $next = $from->copy()->addMonthNoOverflow()->startOfMonth();
-            $due = $next->copy()->day(min($day, $next->daysInMonth));
-        }
-
-        return $due;
     }
 }

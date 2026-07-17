@@ -61,10 +61,10 @@ class LoanWalletService
         return max(0, (float) $loan->principal_amount - $paid);
     }
 
-    public function recordCreation(Loan $loan, Wallet $wallet): Transaction
+    public function recordCreation(Loan $loan, Wallet $wallet, ?float $amount = null): Transaction
     {
         $type = $this->cashFlowTypeForCreation($loan->type);
-        $amount = (float) $loan->principal_amount;
+        $amount = $amount !== null ? max(0, $amount) : (float) $loan->principal_amount;
 
         return $this->createLinkedTransaction(
             wallet: $wallet,

@@ -15,6 +15,8 @@ final class GetSettingsHandler implements QueryHandler
 
         return [
             'recurring_alert_days' => Setting::recurringAlertDays($query->userId),
+            'telegram_chat_id' => Setting::telegramChatId($query->userId),
+            'telegram_enabled' => Setting::telegramEnabled($query->userId),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace Wallets\Lending\Application;
 
 use App\Models\Loan;
 use App\Models\Payment;
+use App\Models\RecurringItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -212,7 +213,8 @@ class LoanPaymentScheduleService
             return;
         }
 
-        $recurring = \App\Models\RecurringItem::create([
+        $recurring = RecurringItem::create([
+            'user_id' => $loan->user_id,
             'name' => $name,
             'type' => 'expense',
             'amount' => $loan->monthly_payment,

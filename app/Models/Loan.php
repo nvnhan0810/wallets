@@ -13,7 +13,7 @@ class Loan extends Model
 
     protected $fillable = [
         'user_id',
-                'type',
+        'type',
         'name',
         'principal_amount',
         'interest_rate',
@@ -50,6 +50,11 @@ class Loan extends Model
         return $this->hasMany(LoanCustomSchedule::class);
     }
 
+    public function periods(): HasMany
+    {
+        return $this->hasMany(LoanCustomSchedule::class)->orderBy('month_index');
+    }
+
     public function recurringItem(): BelongsTo
     {
         return $this->belongsTo(RecurringItem::class);
@@ -60,4 +65,3 @@ class Loan extends Model
         return $this->type === 'bank';
     }
 }
-

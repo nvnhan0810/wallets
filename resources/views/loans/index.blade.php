@@ -6,13 +6,23 @@
     paymentModalOpen: false,
     settleModalOpen: false,
     selectedLoan: null,
+    selectedPeriodId: '',
     paymentAmount: '',
     paymentDate: '{{ date('d/m/Y') }}',
     paymentNote: '',
     walletId: '{{ $wallets->first()?->id }}',
-    openPaymentModal(loan) {
+    loansIndex: @js($loans->mapWithKeys(fn ($l) => [$l->id => ['id' => $l->id, 'name' => $l->name, 'type' => $l->type, 'monthly_payment' => $l->monthly_payment, 'wallet_id' => $l->wallet_id, 'payoff_remaining' => $l->payoff_remaining ?? 0]])),
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        const payLoan = params.get('pay');
+        if (payLoan && this.loansIndex[payLoan]) {
+            this.openPaymentModal(this.loansIndex[payLoan], params.get('period'), params.get('amount'));
+        }
+    },
+    openPaymentModal(loan, periodId = null, amount = null) {
         this.selectedLoan = loan;
-        this.paymentAmount = loan.monthly_payment || loan.payoff_remaining || '';
+        this.selectedPeriodId = periodId || '';
+        this.paymentAmount = amount || loan.monthly_payment || loan.payoff_remaining || '';
         this.paymentNote = loan.monthly_payment ? 'Thanh toán định kỳ' : 'Thanh toán nợ';
         this.walletId = loan.wallet_id ? String(loan.wallet_id) : this.walletId;
         this.paymentModalOpen = true;
@@ -198,6 +208,7 @@
                 <form action="{{ route('payments.store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="loan_id" :value="selectedLoan?.id">
+                    <input type="hidden" name="period_id" :value="selectedPeriodId">
 
                     <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                         <div class="sm:flex sm:items-start">
