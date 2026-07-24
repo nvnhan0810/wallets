@@ -33,18 +33,18 @@
 @endphp
 
 <div class="max-w-2xl mx-auto" x-data="transactionForm(@js($templateData), @js($initial))">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6">Ghi giao dịch</h2>
+    <h2 class="text-2xl font-bold text-content mb-6">Ghi giao dịch</h2>
     @include('partials.flash')
 
-    <form action="{{ route('transactions.store') }}" method="POST" class="bg-white shadow rounded-lg p-6 space-y-4">
+    <form action="{{ route('transactions.store') }}" method="POST" class="bg-surface shadow rounded-lg p-6 space-y-4">
         @csrf
         <input type="hidden" name="transaction_template_id" :value="from_template ? template_id : ''">
         <input type="hidden" name="recurring_item_id" value="{{ old('recurring_item_id', $prefill['recurring_item_id'] ?? '') }}">
         <input type="hidden" name="recurring_occurrence_id" value="{{ old('recurring_occurrence_id', $prefill['recurring_occurrence_id'] ?? '') }}">
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Chọn mẫu (tùy chọn)</label>
-            <select @change="applyTemplate($event.target.value)" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+            <label class="block text-sm font-medium text-content-secondary">Chọn mẫu (tùy chọn)</label>
+            <select @change="applyTemplate($event.target.value)" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 <option value="">— Không dùng mẫu —</option>
                 @foreach($templates as $t)
                     <option value="{{ $t->id }}">{{ $t->name }} ({{ $t->typeLabel() }})</option>
@@ -53,8 +53,8 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Loại giao dịch</label>
-            <select name="type" x-model="type" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+            <label class="block text-sm font-medium text-content-secondary">Loại giao dịch</label>
+            <select name="type" x-model="type" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 <option value="expense">Chi</option>
                 <option value="income">Thu</option>
                 <option value="adjustment">Cân đối</option>
@@ -67,8 +67,8 @@
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Ví</label>
-                        <select name="wallet_id" x-model="wallet_id" :required="type === 'income' || type === 'expense'" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <label class="block text-sm font-medium text-content-secondary">Ví</label>
+                        <select name="wallet_id" x-model="wallet_id" :required="type === 'income' || type === 'expense'" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                             <option value="">Chọn ví</option>
                             @foreach($wallets as $w)
                                 <option value="{{ $w->id }}">{{ $w->name }}</option>
@@ -76,17 +76,17 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Số tiền (₫)</label>
-                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
+                        <label class="block text-sm font-medium text-content-secondary">Số tiền (₫)</label>
+                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Mô tả</label>
-                    <input type="text" name="description" x-model="description" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    <label class="block text-sm font-medium text-content-secondary">Mô tả</label>
+                    <input type="text" name="description" x-model="description" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Danh mục</label>
-                    <input type="text" name="category" x-model="category" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    <label class="block text-sm font-medium text-content-secondary">Danh mục</label>
+                    <input type="text" name="category" x-model="category" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 </div>
             </div>
         </template>
@@ -97,28 +97,28 @@
                 <p class="text-xs text-amber-800">Điều chỉnh số dư ví cho khớp sổ sách / thực tế, không phải thu chi thật.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Ví</label>
-                        <select name="wallet_id" x-model="wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <label class="block text-sm font-medium text-content-secondary">Ví</label>
+                        <select name="wallet_id" x-model="wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                             @foreach($wallets as $w)
                                 <option value="{{ $w->id }}">{{ $w->name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Hướng cân đối</label>
-                        <select name="adjustment_direction" x-model="adjustment_direction" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <label class="block text-sm font-medium text-content-secondary">Hướng cân đối</label>
+                        <select name="adjustment_direction" x-model="adjustment_direction" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                             <option value="increase">Tăng số dư</option>
                             <option value="decrease">Giảm số dư</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Số tiền điều chỉnh (₫)</label>
-                    <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
+                    <label class="block text-sm font-medium text-content-secondary">Số tiền điều chỉnh (₫)</label>
+                    <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Lý do</label>
-                    <input type="text" name="description" x-model="description" required placeholder="VD: Đối chiếu sao kê tháng 5" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    <label class="block text-sm font-medium text-content-secondary">Lý do</label>
+                    <input type="text" name="description" x-model="description" required placeholder="VD: Đối chiếu sao kê tháng 5" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 </div>
             </div>
         </template>
@@ -129,8 +129,8 @@
                 <p class="text-xs text-blue-800">Rút/chuyển từ ví nguồn sang ví đích. Phí trừ thêm ở ví nguồn.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Từ ví</label>
-                        <select name="from_wallet_id" x-model="from_wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <label class="block text-sm font-medium text-content-secondary">Từ ví</label>
+                        <select name="from_wallet_id" x-model="from_wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                             <option value="">Chọn ví nguồn</option>
                             @foreach($wallets as $w)
                                 <option value="{{ $w->id }}">{{ $w->name }}</option>
@@ -138,8 +138,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Đến ví</label>
-                        <select name="to_wallet_id" x-model="to_wallet_id" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                        <label class="block text-sm font-medium text-content-secondary">Đến ví</label>
+                        <select name="to_wallet_id" x-model="to_wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                             <option value="">Chọn ví đích</option>
                             @foreach($wallets as $w)
                                 <option value="{{ $w->id }}">{{ $w->name }}</option>
@@ -149,44 +149,44 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Số tiền chuyển (₫)</label>
-                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
+                        <label class="block text-sm font-medium text-content-secondary">Số tiền chuyển (₫)</label>
+                        <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Phí (₫)</label>
-                        <x-money-input name="fee" alpine-model="fee" class="mt-1 block w-full rounded-md border border-gray-300 p-2" />
+                        <label class="block text-sm font-medium text-content-secondary">Phí (₫)</label>
+                        <x-money-input name="fee" alpine-model="fee" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
                     </div>
                 </div>
-                <p class="text-xs text-gray-600">Ví nguồn trừ: <span class="font-semibold" x-text="formatMoney((Number(amount)||0) + (Number(fee)||0))"></span></p>
+                <p class="text-xs text-gray-600 dark:text-slate-500">Ví nguồn trừ: <span class="font-semibold" x-text="formatMoney((Number(amount)||0) + (Number(fee)||0))"></span></p>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Mô tả</label>
-                    <input type="text" name="description" x-model="description" required placeholder="VD: Chuyển tiền mặt sang ngân hàng" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    <label class="block text-sm font-medium text-content-secondary">Mô tả</label>
+                    <input type="text" name="description" x-model="description" required placeholder="VD: Chuyển tiền mặt sang ngân hàng" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
                 </div>
             </div>
         </template>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Ngày giao dịch</label>
-            <input type="text" name="transacted_at" value="{{ old('transacted_at', $prefill['transacted_at'] ?? date('d/m/Y')) }}" required class="datepicker mt-1 block w-full rounded-md border border-gray-300 p-2">
+            <label class="block text-sm font-medium text-content-secondary">Ngày giao dịch</label>
+            <input type="text" name="transacted_at" value="{{ old('transacted_at', $prefill['transacted_at'] ?? date('d/m/Y')) }}" required class="datepicker mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700">Ghi chú</label>
-            <textarea name="note" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2">{{ old('note') }}</textarea>
+            <label class="block text-sm font-medium text-content-secondary">Ghi chú</label>
+            <textarea name="note" rows="2" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">{{ old('note') }}</textarea>
         </div>
 
-        <div x-show="!from_template" x-cloak class="rounded-md bg-gray-50 p-4 border border-gray-200">
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" name="save_as_template" value="1" x-model="save_as_template" class="rounded border-gray-300 text-indigo-600">
+        <div x-show="!from_template" x-cloak class="rounded-md bg-app p-4 border border-default">
+            <label class="flex items-center gap-2 text-sm text-content-secondary">
+                <input type="checkbox" name="save_as_template" value="1" x-model="save_as_template" class="rounded border-strong bg-surface text-content text-primary-600 dark:text-primary-400">
                 Lưu thành mẫu
             </label>
             <div x-show="save_as_template" class="mt-3">
-                <input type="text" name="template_name" x-model="template_name" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="Tên mẫu">
+                <input type="text" name="template_name" x-model="template_name" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm" placeholder="Tên mẫu">
             </div>
         </div>
 
         <div class="flex gap-3 pt-2">
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Lưu</button>
-            <a href="{{ route('transactions.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Hủy</a>
+            <button type="submit" class="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-md text-sm font-medium hover:bg-primary-700 dark:hover:bg-primary-600">Lưu</button>
+            <a href="{{ route('transactions.index') }}" class="px-4 py-2 border border-strong bg-surface text-content rounded-md text-sm text-content-secondary hover:bg-surface-hover">Hủy</a>
         </div>
     </form>
 </div>
