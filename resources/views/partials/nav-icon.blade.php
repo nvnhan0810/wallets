@@ -1,6 +1,6 @@
 @php
     $active = $active ?? false;
-    $stroke = $active ? 'text-indigo-600' : 'text-gray-400';
+    $stroke = $active ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400';
 @endphp
 @switch($name)
     @case('home')

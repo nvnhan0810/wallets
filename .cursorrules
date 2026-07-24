@@ -1,0 +1,14 @@
+# Laravel + K3s Build & Deployment Rules
+
+Whenever making changes to frontend assets (CSS, JS) or Blade templates (`.blade.php`), the AI MUST execute the following steps to ensure the user can see the changes on the live web environment:
+
+1. **Build Frontend Assets:**
+   Run `npm run build` in the project root (`/home/nvnhan0810/www/wallets-dev.nvnhan0810.com`).
+
+2. **Clear OPcache by Restarting the Pod:**
+   Because PHP OPcache is configured with `opcache.validate_timestamps=0` in production, clearing the Laravel view cache is NOT ENOUGH. You MUST delete the pod to force OPcache to reload the compiled views.
+   - Run: `kubectl delete pod -l app.kubernetes.io/name=wallets-dev-nvnhan0810-com -n wallets-dev-nvnhan0810-com`
+   - Wait for the new pod to be ready: `sleep 15 && kubectl get pods -n wallets-dev-nvnhan0810-com`
+
+3. **Verification:**
+   Always confirm the live site has updated by running a `curl` command (e.g., `curl -s https://wallets-dev.nvnhan0810.com/login | grep ...`) before telling the user to test.
