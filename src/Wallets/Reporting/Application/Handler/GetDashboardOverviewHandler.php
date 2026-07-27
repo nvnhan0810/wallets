@@ -31,13 +31,21 @@ final class GetDashboardOverviewHandler implements QueryHandler
         $upcomingRecurring = $this->recurringService->upcoming($query->userId, $alertDays);
         $upcomingReminders = $this->buildUpcomingReminders($upcomingLoanPayments, $upcomingRecurring);
 
-        $wallets = Wallet::query()
+        $allActiveWallets = Wallet::query()
             ->forUser($query->userId)
             ->where('is_active', true)
-            ->orderBy('name')
             ->get();
 
-        $totalWalletBalance = $wallets->sum('balance');
+        $walletsCount = $allActiveWallets->count();
+
+        $wallets = $allActiveWallets
+            ->where('is_pinned', true)
+            ->sortBy('order')
+            ->values();
+
+        $creditCardDebt = $allActiveWallets->where('type', 'credit_card')->sum('outstanding_balance');
+        // Loans debt will be added in the controller
+        $totalDebt = $creditCardDebt;
 
         $recentTransactions = Transaction::query()
             ->forUser($query->userId)
@@ -59,7 +67,8 @@ final class GetDashboardOverviewHandler implements QueryHandler
             'alertDays',
             'upcomingReminders',
             'wallets',
-            'totalWalletBalance',
+            'walletsCount',
+            'totalDebt',
             'recentTransactions',
             'unsettledLoansCount',
             'cashFlowStats',

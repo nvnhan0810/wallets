@@ -25,22 +25,36 @@ class AmortizationService
         $startDate,
         $fixedMonthlyPayment = null,
         $method = 'monthly',
+        $paymentDay = null,
     ): Collection {
         $customRows = $method === 'custom' ? $this->customRows($loanId) : [];
         $holidays = $method === 'daily' ? $this->holidays() : [];
+        $start = $this->toImmutable($startDate);
+        $resolvedPaymentDay = $paymentDay !== null
+            ? (int) $paymentDay
+            : (int) $start->format('j');
 
         $rows = $this->calculator->calculate(
             (float) $principal,
             (float) $annualRate,
             (int) $months,
-            $this->toImmutable($startDate),
+            $start,
             $fixedMonthlyPayment !== null ? (float) $fixedMonthlyPayment : null,
             (string) $method,
             $customRows,
             $holidays,
+            $resolvedPaymentDay,
         );
 
         return collect($rows);
+    }
+
+    public function adjustDueDateForNonWorkingDays(DateTimeInterface $date): DateTimeImmutable
+    {
+        return $this->calculator->adjustForNonWorkingDays(
+            $this->toImmutable($date),
+            $this->holidays(),
+        );
     }
 
     /**

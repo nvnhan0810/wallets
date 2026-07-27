@@ -31,6 +31,7 @@ class LoanScheduleGenerator
             $loan->started_at,
             $loan->monthly_payment,
             $loan->interest_calculation_method ?? 'monthly',
+            $loan->payment_day,
         );
 
         if ($schedule->isEmpty()) {
@@ -42,7 +43,13 @@ class LoanScheduleGenerator
 
         foreach ($schedule as $row) {
             $due = $this->paymentSchedule->periodDueDate($loan, $row);
+            $existing = LoanCustomSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->where('month_index', (int) $row['month_index'])
+                ->first();
             $isPast = $backfillPast && $due->lte($today);
+            $wasPaid = $existing?->status === LoanCustomSchedule::STATUS_PAID;
+            $markPaid = $wasPaid || $isPast;
 
             LoanCustomSchedule::updateOrCreate(
                 ['loan_id' => $loan->id, 'month_index' => (int) $row['month_index']],
@@ -54,13 +61,13 @@ class LoanScheduleGenerator
                     'interest' => $row['interest'],
                     'fee' => $row['fee'] ?? 0,
                     'remaining_principal' => $row['remaining_principal'],
-                    'status' => $isPast ? LoanCustomSchedule::STATUS_PAID : LoanCustomSchedule::STATUS_PENDING,
-                    'paid_amount' => $isPast ? $row['payment'] : null,
-                    'paid_at' => $isPast ? $due->toDateString() : null,
+                    'status' => $markPaid ? LoanCustomSchedule::STATUS_PAID : LoanCustomSchedule::STATUS_PENDING,
+                    'paid_amount' => $markPaid ? ($existing?->paid_amount ?? $row['payment']) : null,
+                    'paid_at' => $markPaid ? ($existing?->paid_at?->toDateString() ?? $due->toDateString()) : null,
                 ]
             );
 
-            if ($isPast) {
+            if ($markPaid) {
                 $paidCount++;
             }
         }

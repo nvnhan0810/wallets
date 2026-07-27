@@ -25,10 +25,18 @@ class LoanPaymentScheduleService
 
     public function periodDueDate(Loan $loan, array $scheduleRow): Carbon
     {
+        if (($loan->interest_calculation_method ?? 'monthly') === 'daily') {
+            $date = $scheduleRow['date'] ?? null;
+            if ($date instanceof \DateTimeInterface) {
+                return Carbon::instance(\DateTime::createFromInterface($date))->startOfDay();
+            }
+        }
+
         $base = Carbon::parse($scheduleRow['theoretical_date'] ?? $scheduleRow['date']);
         $day = min($this->paymentDay($loan), $base->daysInMonth);
+        $candidate = $base->copy()->day($day)->startOfDay();
 
-        return $base->copy()->day($day)->startOfDay();
+        return $candidate;
     }
 
     /**
@@ -103,17 +111,21 @@ class LoanPaymentScheduleService
             ->where('reduces_principal', true)
             ->max('schedule_month_index');
 
+        $fromSchedules = (int) $loan->customSchedules()
+            ->where('status', \App\Models\LoanCustomSchedule::STATUS_PAID)
+            ->max('month_index');
+
         $cutoff = $this->principalReductionCutoff();
 
         if (Carbon::today()->gte($cutoff)) {
-            return min($fromPayments, $maxIndex);
+            return min(max($fromPayments, $fromSchedules, (int) $loan->months_paid), $maxIndex);
         }
 
         $legacy = $loan->months_paid > 0
             ? (int) $loan->months_paid
             : (int) $loan->started_at->diffInMonths(Carbon::now());
 
-        return min(max($legacy, $fromPayments), $maxIndex);
+        return min(max($legacy, $fromPayments, $fromSchedules), $maxIndex);
     }
 
     public function remainingPrincipalAt(Loan $loan, Collection $schedule, int $monthsPassed): float
@@ -122,10 +134,17 @@ class LoanPaymentScheduleService
             return (float) $loan->principal_amount;
         }
 
-        $current = $schedule->first(fn ($item) => $item['month_index'] > $monthsPassed)
-            ?? $schedule->last();
+        if ($monthsPassed <= 0) {
+            return (float) $loan->principal_amount;
+        }
 
-        return (float) ($current['remaining_principal'] ?? 0);
+        $lastPaidPeriod = $schedule->firstWhere('month_index', $monthsPassed);
+
+        if ($lastPaidPeriod !== null) {
+            return (float) ($lastPaidPeriod['remaining_principal'] ?? 0);
+        }
+
+        return (float) ($schedule->last()['remaining_principal'] ?? 0);
     }
 
     public function principalBeforePeriod(Collection $schedule, int $monthIndex): float

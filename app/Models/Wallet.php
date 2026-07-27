@@ -28,6 +28,8 @@ class Wallet extends Model
         'outstanding_balance',
         'notes',
         'is_active',
+        'is_pinned',
+        'order',
     ];
 
     protected $casts = [
@@ -35,6 +37,8 @@ class Wallet extends Model
         'credit_limit' => 'decimal:2',
         'outstanding_balance' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_pinned' => 'boolean',
+        'order' => 'integer',
     ];
 
     public function transactions(): HasMany

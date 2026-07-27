@@ -29,6 +29,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/payments', [LoanController::class, 'storePayment'])->name('payments.store');
     Route::post('/loans/{loan}/settle', [LoanController::class, 'settle'])->name('loans.settle');
 
+    Route::get('/wallets/sort', [WalletController::class, 'sort'])->name('wallets.sort');
+    Route::post('/wallets/sort', [WalletController::class, 'updateSort'])->name('wallets.update-sort');
     Route::resource('wallets', WalletController::class)->except(['show']);
 
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
@@ -50,5 +52,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/holidays', [HolidayController::class, 'index'])->name('holidays.index');
     Route::post('/holidays', [HolidayController::class, 'store'])->name('holidays.store');
+    Route::post('/holidays/import', [HolidayController::class, 'import'])->name('holidays.import');
+    Route::get('/holidays/import/template', [HolidayController::class, 'importTemplate'])->name('holidays.import.template');
     Route::delete('/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
 });
