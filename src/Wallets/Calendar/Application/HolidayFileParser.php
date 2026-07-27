@@ -46,6 +46,8 @@ final class HolidayFileParser
                 continue;
             }
 
+            $line = $this->stripUtf8BomFromLine($line);
+
             if ($skipHeader === null) {
                 $skipHeader = $this->looksLikeHeader($line);
             }
@@ -223,5 +225,23 @@ final class HolidayFileParser
         }
 
         return true;
+    }
+
+    /**
+     * @param  array<int, mixed>  $line
+     * @return array<int, mixed>
+     */
+    private function stripUtf8BomFromLine(array $line): array
+    {
+        if ($line === []) {
+            return $line;
+        }
+
+        $first = (string) ($line[0] ?? '');
+        if (str_starts_with($first, "\xEF\xBB\xBF")) {
+            $line[0] = substr($first, 3);
+        }
+
+        return $line;
     }
 }

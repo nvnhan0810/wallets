@@ -133,6 +133,7 @@
                             <div>
                                 <dt class="text-sm font-medium text-content-muted">Thời gian còn lại</dt>
                                 <dd class="mt-1 text-2xl font-semibold text-content">{{ $loan->remaining_months }} / {{ $loan->term_months }} tháng</dd>
+                                <p class="mt-1 text-xs text-content-muted">Đã trả {{ $loan->months_passed ?? 0 }} tháng</p>
                             </div>
                             <div class="flex justify-between">
                                 <div>

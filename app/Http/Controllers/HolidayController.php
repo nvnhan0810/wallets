@@ -99,6 +99,8 @@ class HolidayController extends Controller
 
         return response()->streamDownload(function () use ($holidays) {
             $handle = fopen('php://output', 'w');
+            // Excel on Windows needs UTF-8 BOM to display Vietnamese correctly.
+            fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, ['Ngày', 'Tên ngày lễ', 'Loại']);
 
             foreach ($holidays as $holiday) {

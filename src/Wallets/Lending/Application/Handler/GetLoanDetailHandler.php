@@ -22,7 +22,7 @@ final class GetLoanDetailHandler implements QueryHandler
 
         $loan = Loan::query()
             ->forUser($query->userId)
-            ->with(['payments.transaction', 'wallet'])
+            ->with(['payments.transaction', 'wallet', 'customSchedules'])
             ->findOrFail($query->loanId);
 
         $schedule = collect([]);
@@ -37,7 +37,8 @@ final class GetLoanDetailHandler implements QueryHandler
                 $loan->term_months,
                 $loan->started_at,
                 $loan->monthly_payment,
-                $loan->interest_calculation_method ?? 'monthly'
+                $loan->interest_calculation_method ?? 'monthly',
+                $loan->payment_day,
             );
 
             if ($schedule->isNotEmpty()) {

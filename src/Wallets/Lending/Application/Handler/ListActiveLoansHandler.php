@@ -20,7 +20,7 @@ final class ListActiveLoansHandler implements QueryHandler
     {
         assert($query instanceof ListActiveLoans);
 
-        $loans = Loan::with(['payments', 'wallet'])
+        $loans = Loan::with(['payments', 'wallet', 'customSchedules'])
             ->forUser($query->userId)
             ->where('is_settled', false)
             ->get();
@@ -36,17 +36,20 @@ final class ListActiveLoansHandler implements QueryHandler
                     $loan->term_months,
                     $loan->started_at,
                     $loan->monthly_payment,
-                    $loan->interest_calculation_method ?? 'monthly'
+                    $loan->interest_calculation_method ?? 'monthly',
+                    $loan->payment_day,
                 );
 
                 if ($schedule->isEmpty()) {
                     $loan->remaining_months = $loan->term_months;
                     $loan->remaining_principal = $loan->principal_amount;
                     $loan->remaining_interest = 0;
+                    $loan->months_passed = 0;
                 } else {
                     $monthsPassed = $this->paymentSchedule->effectiveMonthsPaid($loan, $schedule, $loan->payments);
                     $maxIndex = $schedule->max('month_index');
 
+                    $loan->months_passed = $monthsPassed;
                     $loan->remaining_months = max(0, ($loan->term_months ?? $maxIndex) - $monthsPassed);
                     $loan->remaining_principal = $this->paymentSchedule->remainingPrincipalAt($loan, $schedule, $monthsPassed);
                     $loan->remaining_interest = $schedule->where('month_index', '>', $monthsPassed)->sum('interest');

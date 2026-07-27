@@ -64,4 +64,40 @@ class ImportHolidaysTest extends TestCase
         ]);
         $this->assertSame(1, Holiday::whereDate('date', '2026-01-01')->count());
     }
+
+    #[Test]
+    public function import_template_csv_includes_utf8_bom_for_excel(): void
+    {
+        $user = User::factory()->create(['email' => 'holiday-template@example.com']);
+
+        $response = $this->actingAs($user)->get(route('holidays.import.template'));
+
+        $response->assertOk();
+        $content = $response->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
+        $this->assertStringContainsString('Ngày', $content);
+        $this->assertStringContainsString('Tên ngày lễ', $content);
+        $this->assertStringContainsString('Giải phóng miền Nam', $content);
+    }
+
+    #[Test]
+    public function import_accepts_csv_with_utf8_bom(): void
+    {
+        $user = User::factory()->create(['email' => 'holiday-bom@example.com']);
+
+        $csv = "\xEF\xBB\xBFNgày,Tên ngày lễ,Loại\n".
+            "01/01/2026,Tết Dương Lịch,public\n";
+
+        $file = UploadedFile::fake()->createWithContent('holidays.csv', $csv);
+
+        $response = $this->actingAs($user)->post(route('holidays.import'), [
+            'file' => $file,
+        ]);
+
+        $response->assertRedirect(route('holidays.index'));
+        $this->assertDatabaseHas('holidays', [
+            'name' => 'Tết Dương Lịch',
+        ]);
+    }
 }

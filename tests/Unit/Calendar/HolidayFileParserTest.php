@@ -42,6 +42,19 @@ class HolidayFileParserTest extends TestCase
         $this->assertCount(2, $result['errors']);
     }
 
+    #[Test]
+    public function parses_csv_with_utf8_bom(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'holiday_csv_bom_');
+        file_put_contents($path, "\xEF\xBB\xBFNgày,Tên ngày lễ,Loại\n01/01/2026,Tết Dương Lịch,public\n");
+
+        $result = (new HolidayFileParser)->parse($path, 'csv');
+
+        $this->assertSame([], $result['errors']);
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('Tết Dương Lịch', $result['rows'][0]['name']);
+    }
+
     /**
      * @param  list<list<string>>  $rows
      */

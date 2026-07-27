@@ -5,11 +5,14 @@ namespace Wallets\Calendar\Application\Handler;
 use App\Models\Holiday;
 use Wallets\Calendar\Application\Command\ImportHolidays;
 use Wallets\Calendar\Application\ImportHolidaysResult;
+use Wallets\Lending\Application\LoanScheduleRecalculator;
 use Wallets\Shared\Application\Command;
 use Wallets\Shared\Application\CommandHandler;
 
 final class ImportHolidaysHandler implements CommandHandler
 {
+    public function __construct(private readonly LoanScheduleRecalculator $loanScheduleRecalculator) {}
+
     public function handle(Command $command): ImportHolidaysResult
     {
         assert($command instanceof ImportHolidays);
@@ -53,6 +56,10 @@ final class ImportHolidaysHandler implements CommandHandler
                 $skipped++;
                 $errors[] = "Dòng {$lineNumber}: không thể lưu ngày {$row['date']}.";
             }
+        }
+
+        if ($created > 0 || $updated > 0) {
+            $this->loanScheduleRecalculator->recalculateUnsettledDailyLoans();
         }
 
         return new ImportHolidaysResult($created, $updated, $skipped, $errors);
