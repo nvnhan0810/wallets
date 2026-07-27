@@ -42,23 +42,26 @@
         }
     </style>
 </head>
-<body class="bg-app text-content font-sans transition-colors duration-200" x-data="{ moreOpen: false }" @keydown.escape.window="moreOpen = false">
+<body class="bg-app text-content font-sans transition-colors duration-200">
     <div class="min-h-screen flex flex-col min-h-[100dvh]">
 
         {{-- Mobile top bar --}}
-        <header class="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-800/95 backdrop-blur border-b border-default">
+        <header class="md:hidden sticky top-0 z-40 bg-app/95 backdrop-blur border-b border-default">
             <div class="flex items-center justify-between h-14 px-4">
-                <a href="{{ route('dashboard') }}" class="text-xl font-bold text-primary-600 dark:text-primary-400">MyWallet</a>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-sm">
+                        N
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-content-muted uppercase tracking-wider font-semibold">Chào buổi sáng</p>
+                        <p class="text-sm font-bold text-content leading-tight">Nhân</p>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="toggleTheme()" class="p-2 text-content-muted hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full">
+                    <button onclick="toggleTheme()" class="p-2 text-content-muted hover:bg-surface-hover rounded-full">
                         <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                         <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
                     </button>
-                    <a href="{{ route('transactions.create') }}"
-                       class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-full bg-primary-600 dark:bg-primary-500 text-white shadow-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        Giao dịch
-                    </a>
                 </div>
             </div>
         </header>
@@ -101,79 +104,40 @@
 
         {{-- Mobile bottom navigation --}}
         <nav class="md:hidden fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-default shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.2)] safe-bottom transition-colors duration-200" aria-label="Điều hướng chính">
-            <div class="grid grid-cols-5 h-[4.5rem] max-w-lg mx-auto">
+            <div class="grid grid-cols-5 h-[4.5rem] max-w-lg mx-auto relative">
                 <a href="{{ route('dashboard') }}"
                    class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
                    {{ request()->routeIs('dashboard') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
                     @include('partials.nav-icon', ['name' => 'home', 'active' => request()->routeIs('dashboard')])
                     <span>Tổng quan</span>
                 </a>
-                <a href="{{ route('wallets.index') }}"
-                   class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
-                   {{ request()->routeIs('wallets.*') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
-                    @include('partials.nav-icon', ['name' => 'wallet', 'active' => request()->routeIs('wallets.*')])
-                    <span>Ví</span>
-                </a>
                 <a href="{{ route('transactions.index') }}"
                    class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
-                   {{ request()->routeIs('transactions.*') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
-                    @include('partials.nav-icon', ['name' => 'swap', 'active' => request()->routeIs('transactions.*')])
-                    <span>Giao dịch</span>
+                   {{ request()->routeIs('transactions.*') && !request()->routeIs('transactions.create') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
+                    @include('partials.nav-icon', ['name' => 'swap', 'active' => request()->routeIs('transactions.*') && !request()->routeIs('transactions.create')])
+                    <span>Lịch sử</span>
                 </a>
+                
+                <div class="flex justify-center items-start -mt-5">
+                    <a href="{{ route('transactions.create') }}" class="w-14 h-14 rounded-full bg-primary-600 dark:bg-primary-500 shadow-lg shadow-primary-500/40 flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform">
+                        @include('partials.nav-icon', ['name' => 'plus'])
+                    </a>
+                </div>
+
                 <a href="{{ route('loans.index') }}"
                    class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
-                   {{ request()->routeIs('loans.*', 'payments.*') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
-                    @include('partials.nav-icon', ['name' => 'loan', 'active' => request()->routeIs('loans.*', 'payments.*')])
-                    <span>Vay</span>
+                   {{ request()->routeIs('loans.*', 'recurring-items.*') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
+                    @include('partials.nav-icon', ['name' => 'planning', 'active' => request()->routeIs('loans.*', 'recurring-items.*')])
+                    <span>Kế hoạch</span>
                 </a>
-                <button type="button" @click="moreOpen = true"
-                    class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
-                    {{ request()->routeIs('recurring-items.*', 'transaction-templates.*', 'holidays.*', 'settings.*', 'loans.create') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
-                    @include('partials.nav-icon', ['name' => 'menu', 'active' => request()->routeIs('recurring-items.*', 'transaction-templates.*', 'holidays.*', 'settings.*', 'loans.create')])
-                    <span>Thêm</span>
-                </button>
+                <a href="{{ route('settings.index') }}"
+                   class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]
+                   {{ request()->routeIs('settings.*', 'transaction-templates.*', 'holidays.*', 'wallets.*') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted' }}">
+                    @include('partials.nav-icon', ['name' => 'profile', 'active' => request()->routeIs('settings.*', 'transaction-templates.*', 'holidays.*', 'wallets.*')])
+                    <span>Cá nhân</span>
+                </a>
             </div>
         </nav>
-
-        {{-- Mobile more sheet --}}
-        <div x-show="moreOpen" x-cloak class="md:hidden fixed inset-0 z-[60]" aria-modal="true" role="dialog">
-            <div class="absolute inset-0 bg-black/40 dark:bg-black/60" @click="moreOpen = false"></div>
-            <div class="absolute bottom-0 inset-x-0 bg-surface rounded-t-2xl shadow-xl safe-bottom max-h-[85vh] overflow-y-auto transition-colors duration-200"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="translate-y-full"
-                 x-transition:enter-end="translate-y-0"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="translate-y-0"
-                 x-transition:leave-end="translate-y-full">
-                <div class="flex justify-center pt-3 pb-2">
-                    <div class="w-10 h-1 rounded-full bg-gray-300 dark:bg-slate-700"></div>
-                </div>
-                <p class="px-5 pb-3 text-sm font-semibold text-content">Thêm tính năng</p>
-                <div class="px-3 pb-4 space-y-1">
-                    <a href="{{ route('recurring-items.index') }}" @click="moreOpen = false"
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('recurring-items.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:bg-surface-hover/50' }}">
-                        <span class="text-lg">📅</span><span class="font-medium">Thu chi cố định</span>
-                    </a>
-                    <a href="{{ route('transaction-templates.index') }}" @click="moreOpen = false"
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('transaction-templates.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:bg-surface-hover/50' }}">
-                        <span class="text-lg">📋</span><span class="font-medium">Mẫu giao dịch</span>
-                    </a>
-                    <a href="{{ route('loans.create') }}" @click="moreOpen = false"
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('loans.create') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:bg-surface-hover/50' }}">
-                        <span class="text-lg">➕</span><span class="font-medium">Tạo khoản vay</span>
-                    </a>
-                    <a href="{{ route('holidays.index') }}" @click="moreOpen = false"
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('holidays.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:bg-surface-hover/50' }}">
-                        <span class="text-lg">🗓</span><span class="font-medium">Ngày lễ</span>
-                    </a>
-                    <a href="{{ route('settings.index') }}" @click="moreOpen = false"
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('settings.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:bg-surface-hover/50' }}">
-                        <span class="text-lg">⚙️</span><span class="font-medium">Cài đặt</span>
-                    </a>
-                </div>
-                <button type="button" @click="moreOpen = false" class="w-full py-4 text-sm font-medium text-content-muted border-t border-subtle">Đóng</button>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
