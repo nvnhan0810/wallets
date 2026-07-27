@@ -38,35 +38,45 @@
     --color-border-strong: var(--color-border-strong-color);
 }
 
+@layer utilities {
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
 @layer base {
     :root {
-        --color-app-bg: var(--color-gray-50);
-        --color-surface-bg: var(--color-white);
-        --color-surface-hover-bg: var(--color-gray-50);
-        --color-muted-bg: var(--color-gray-100);
+        --color-app-bg: #f4f4f5; /* gray-100 - softer for app background */
+        --color-surface-bg: #ffffff;
+        --color-surface-hover-bg: #f9fafb;
+        --color-muted-bg: #f3f4f6;
 
-        --color-content-text: var(--color-gray-900);
-        --color-content-secondary-text: var(--color-gray-700);
-        --color-content-muted-text: var(--color-gray-500);
+        --color-content-text: #111827; /* gray-900 */
+        --color-content-secondary-text: #374151; /* gray-700 */
+        --color-content-muted-text: #6b7280; /* gray-500 */
 
-        --color-border-subtle-color: var(--color-gray-100);
-        --color-border-default-color: var(--color-gray-200);
-        --color-border-strong-color: var(--color-gray-300);
+        --color-border-subtle-color: #f3f4f6;
+        --color-border-default-color: #e5e7eb;
+        --color-border-strong-color: #d1d5db;
     }
 
     .dark {
-        --color-app-bg: var(--color-slate-900);
-        --color-surface-bg: var(--color-slate-800);
-        --color-surface-hover-bg: var(--color-slate-700);
-        --color-muted-bg: var(--color-slate-800);
+        --color-app-bg: #0f172a; /* slate-950 - deeper dark */
+        --color-surface-bg: #1e293b; /* slate-800 */
+        --color-surface-hover-bg: #334155; /* slate-700 */
+        --color-muted-bg: #1e293b;
 
-        --color-content-text: var(--color-slate-200);
-        --color-content-secondary-text: var(--color-slate-300);
-        --color-content-muted-text: var(--color-slate-400);
+        --color-content-text: #f8fafc;
+        --color-content-secondary-text: #cbd5e1;
+        --color-content-muted-text: #94a3b8;
 
-        --color-border-subtle-color: var(--color-slate-700);
-        --color-border-default-color: var(--color-slate-700);
-        --color-border-strong-color: var(--color-slate-600);
+        --color-border-subtle-color: #334155;
+        --color-border-default-color: #475569;
+        --color-border-strong-color: #64748b;
 
         /* Change primary color for dark theme here (currently using Sky/Blue) */
         --color-primary-50: var(--color-sky-950);

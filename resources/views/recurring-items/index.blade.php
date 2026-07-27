@@ -3,10 +3,18 @@
 @section('content')
 @include('partials.flash')
 
-<div class="mb-6">
-    <h2 class="text-2xl font-bold text-content">Thu chi cố định hàng tháng</h2>
-    <p class="mt-1 text-sm text-content-muted">Gán ví chi trả / nhận và ngày trong tháng. Sẽ hiện nhắc trên tổng quan khi gần đến hạn.</p>
-</div>
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold leading-7 text-content sm:text-3xl sm:truncate">
+            Kế hoạch tài chính
+        </h2>
+    </div>
+
+    <div class="flex border-b border-subtle mb-6">
+        <a href="{{ route('loans.index') }}" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Khoản vay & Nợ</a>
+        <a href="{{ route('recurring-items.index') }}" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Thu chi cố định</a>
+    </div>
+
+    <p class="mb-6 text-sm text-content-muted">Gán ví chi trả / nhận và ngày trong tháng. Sẽ hiện nhắc trên tổng quan khi gần đến hạn.</p>
 
 <div class="bg-surface shadow rounded-lg p-6 mb-8">
     <h3 class="text-lg font-medium text-content mb-4">Thêm khoản mới</h3>

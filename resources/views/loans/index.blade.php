@@ -49,8 +49,13 @@
 
     <div class="mb-6">
         <h2 class="text-2xl font-bold leading-7 text-content sm:text-3xl sm:truncate">
-            Khoản vay & Nợ
+            Kế hoạch tài chính
         </h2>
+    </div>
+
+    <div class="flex border-b border-subtle mb-6">
+        <a href="{{ route('loans.index') }}" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Khoản vay & Nợ</a>
+        <a href="{{ route('recurring-items.index') }}" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Thu chi cố định</a>
     </div>
 
     <!-- Tổng gốc còn lại (Vay + Nợ) + Tổng đang cho mượn -->

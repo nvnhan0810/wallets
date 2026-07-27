@@ -37,6 +37,8 @@ final class GetDashboardOverviewHandler implements QueryHandler
             ->get();
 
         $walletsCount = $allActiveWallets->count();
+        
+        $totalBalance = $allActiveWallets->where('type', '!=', 'credit_card')->sum('balance');
 
         $wallets = $allActiveWallets
             ->where('is_pinned', true)
@@ -68,6 +70,7 @@ final class GetDashboardOverviewHandler implements QueryHandler
             'upcomingReminders',
             'wallets',
             'walletsCount',
+            'totalBalance',
             'totalDebt',
             'recentTransactions',
             'unsettledLoansCount',
