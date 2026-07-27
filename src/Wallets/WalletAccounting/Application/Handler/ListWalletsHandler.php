@@ -13,7 +13,11 @@ final class ListWalletsHandler implements QueryHandler
     {
         assert($query instanceof ListWallets);
 
-        $q = Wallet::query()->forUser($query->userId)->orderByDesc('is_active')->orderBy('name');
+        $q = Wallet::query()
+            ->forUser($query->userId)
+            ->orderByDesc('is_active')
+            ->orderBy('order')
+            ->orderBy('name');
 
         if ($query->activeOnly) {
             $q->where('is_active', true);

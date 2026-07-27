@@ -5,8 +5,10 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Wallets\Calendar\Application\Command\CreateHoliday;
 use Wallets\Calendar\Application\Command\DeleteHoliday;
+use Wallets\Calendar\Application\Command\ImportHolidays;
 use Wallets\Calendar\Application\Handler\CreateHolidayHandler;
 use Wallets\Calendar\Application\Handler\DeleteHolidayHandler;
+use Wallets\Calendar\Application\Handler\ImportHolidaysHandler;
 use Wallets\Calendar\Application\Handler\ListHolidaysHandler;
 use Wallets\Calendar\Application\Query\ListHolidays;
 use Wallets\Catalog\Application\Command\CreateTransactionTemplate;
@@ -106,6 +108,7 @@ class WalletsServiceProvider extends ServiceProvider
             DeleteTransactionTemplate::class => DeleteTransactionTemplateHandler::class,
             CreateHoliday::class => CreateHolidayHandler::class,
             DeleteHoliday::class => DeleteHolidayHandler::class,
+            ImportHolidays::class => ImportHolidaysHandler::class,
             UpdateSettings::class => UpdateSettingsHandler::class,
         ];
     }

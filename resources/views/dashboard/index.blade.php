@@ -14,23 +14,52 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<div class="mb-8">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold text-content">Ví ghim</h3>
+        <a href="{{ route('wallets.sort') }}" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sắp xếp</a>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        @forelse($wallets as $wallet)
+        <div class="bg-surface rounded-lg shadow border border-subtle p-4">
+            <div class="flex justify-between items-start gap-2">
+                <div>
+                    <p class="font-medium text-content text-sm">{{ $wallet->name }}</p>
+                    <p class="text-xs text-content-muted">{{ $wallet->typeLabel() }}</p>
+                </div>
+                @if($wallet->isCreditCard())
+                    <p class="font-semibold text-red-600 dark:text-red-400 text-sm">{{ number_format($wallet->outstanding_balance ?? 0, 0) }} ₫ <span class="text-[10px] font-normal">nợ</span></p>
+                @else
+                    <p class="font-semibold text-sm {{ (float)$wallet->balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-content' }}">{{ number_format($wallet->balance, 0) }} ₫</p>
+                @endif
+            </div>
+            @if($wallet->isCreditCard())
+                <p class="mt-2 text-xs text-content-muted">
+                    Hạn mức: {{ number_format($wallet->credit_limit ?? 0, 0) }} ₫
+                </p>
+                <p class="text-xs text-content-muted">
+                    Còn: {{ number_format($wallet->spendableBalance(), 0) }} ₫
+                </p>
+            @endif
+        </div>
+        @empty
+        <div class="col-span-full bg-surface rounded-lg border border-dashed border-default p-6 text-center text-sm text-content-muted">
+            Chưa có ví nào được ghim. <a href="{{ route('wallets.sort') }}" class="text-primary-600 dark:text-primary-400 hover:underline">Cài đặt ví</a>
+        </div>
+        @endforelse
+    </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
     <div class="bg-surface rounded-lg shadow border border-subtle p-5">
-        <p class="text-sm text-content-muted">Tổng số dư ví</p>
-        <p class="mt-1 text-2xl font-bold {{ $totalWalletBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-content' }}">{{ number_format($totalWalletBalance, 0) }} ₫</p>
+        <p class="text-sm text-content-muted">Tổng nợ</p>
+        <p class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{{ number_format($totalDebt ?? 0, 0) }} ₫</p>
+        <a href="{{ route('loans.index') }}" class="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">Xem khoản vay →</a>
     </div>
     <div class="bg-surface rounded-lg shadow border border-subtle p-5">
-        <p class="text-sm text-content-muted">Số ví đang dùng</p>
-        <p class="mt-1 text-2xl font-bold text-content">{{ $wallets->count() }}</p>
-    </div>
-    <div class="bg-surface rounded-lg shadow border border-subtle p-5">
-        <p class="text-sm text-content-muted">Khoản vay chưa tất toán</p>
-        <p class="mt-1 text-2xl font-bold text-content">{{ $unsettledLoansCount }}</p>
-        <a href="{{ route('loans.index') }}" class="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">Xem chi tiết →</a>
-    </div>
-    <div class="bg-surface rounded-lg shadow border border-subtle p-5">
-        <p class="text-sm text-content-muted">Việc sắp đến hạn</p>
+        <p class="text-sm text-content-muted">Các khoản trả sắp tới</p>
         <p class="mt-1 text-2xl font-bold {{ $upcomingReminders->where('insufficient_funds', true)->count() ? 'text-red-600 dark:text-red-400' : 'text-content' }}">{{ $upcomingReminders->count() }}</p>
+        <a href="#reminders" class="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">Xem chi tiết →</a>
     </div>
 </div>
 
@@ -166,77 +195,7 @@
 </script>
 @endif
 
-@if($upcomingReminders->isNotEmpty())
-<div class="mb-8">
-    <h3 class="text-lg font-semibold text-content mb-3">Nhắc sắp đến hạn (trong {{ $alertDays }} ngày)</h3>
-    <div class="space-y-3">
-        @foreach($upcomingReminders as $reminder)
-        <div class="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 {{ $reminder->insufficient_funds ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800 ring-2 ring-red-200 dark:ring-red-900/50' : ($reminder->kind === 'loan' ? 'bg-primary-50/50 dark:bg-primary-900/50 border-primary-200 dark:border-primary-800' : 'bg-surface border-default') }}">
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="font-semibold {{ $reminder->insufficient_funds ? 'text-red-900 dark:text-red-200' : 'text-content' }}">{{ $reminder->name }}</span>
-                    <span class="text-xs px-2 py-0.5 rounded-full {{ $reminder->type_badge_class }}">{{ $reminder->type_label }}</span>
-                    @if($reminder->insufficient_funds)
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-600 dark:bg-red-500 text-white font-semibold animate-pulse">Ví không đủ tiền!</span>
-                    @endif
-                </div>
-                <p class="text-sm mt-1 {{ $reminder->insufficient_funds ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-slate-500' }}">
-                    {{ number_format($reminder->amount, 0) }} ₫
-                    @if($reminder->wallet)
-                        · Ví: {{ $reminder->wallet->name }}
-                        ({{ $reminder->wallet->isCreditCard() ? 'còn ' . number_format($reminder->wallet->spendableBalance(), 0) : 'số dư ' . number_format($reminder->wallet->balance, 0) }} ₫)
-                    @endif
-                    · Đến hạn {{ $reminder->due_date->format('d/m/Y') }}
-                    @if($reminder->days_until < 0) — <strong class="text-red-600 dark:text-red-400">Quá hạn {{ abs($reminder->days_until) }} ngày</strong>
-                    @elseif($reminder->days_until === 0) — <strong>Hôm nay</strong>
-                    @elseif($reminder->days_until === 1) — <strong>Ngày mai</strong>
-                    @else — Còn {{ $reminder->days_until }} ngày
-                    @endif
-                </p>
-            </div>
-            @if($reminder->kind === 'loan')
-                <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">Thanh toán →</a>
-            @else
-                <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">Ghi giao dịch →</a>
-            @endif
-        </div>
-        @endforeach
-    </div>
-</div>
-@endif
-
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <div>
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-semibold text-content">Ví của bạn</h3>
-            <a href="{{ route('wallets.index') }}" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Quản lý</a>
-        </div>
-        <div class="bg-surface shadow rounded-lg divide-y divide-subtle">
-            @forelse($wallets as $wallet)
-            <div class="px-4 py-3">
-                <div class="flex justify-between items-start gap-2">
-                    <div>
-                        <p class="font-medium text-content">{{ $wallet->name }}</p>
-                        <p class="text-xs text-content-muted">{{ $wallet->typeLabel() }}</p>
-                    </div>
-                    @if($wallet->isCreditCard())
-                        <p class="font-semibold text-red-600 dark:text-red-400 text-sm">{{ number_format($wallet->outstanding_balance ?? 0, 0) }} ₫ <span class="text-xs font-normal">nợ</span></p>
-                    @else
-                        <p class="font-semibold {{ (float)$wallet->balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-content' }}">{{ number_format($wallet->balance, 0) }} ₫</p>
-                    @endif
-                </div>
-                @if($wallet->isCreditCard())
-                    <p class="mt-1 text-xs text-content-muted">
-                        Hạn mức {{ number_format($wallet->credit_limit ?? 0, 0) }} ₫ · Còn {{ number_format($wallet->spendableBalance(), 0) }} ₫
-                        · Sao kê ngày {{ $wallet->statement_day }} · Trả ngày {{ $wallet->payment_day }}
-                    </p>
-                @endif
-            </div>
-            @empty
-            <p class="px-4 py-6 text-sm text-content-muted text-center">Chưa có ví. <a href="{{ route('wallets.create') }}" class="text-primary-600 dark:text-primary-400">Tạo ví đầu tiên</a></p>
-            @endforelse
-        </div>
-    </div>
     <div>
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold text-content">Giao dịch gần đây</h3>
@@ -258,5 +217,40 @@
             @endforelse
         </div>
     </div>
+    
+    @if($upcomingReminders->isNotEmpty())
+    <div id="reminders">
+        <h3 class="text-lg font-semibold text-content mb-3">Nhắc sắp đến hạn ({{ $alertDays }} ngày)</h3>
+        <div class="space-y-3">
+            @foreach($upcomingReminders as $reminder)
+            <div class="rounded-lg border p-4 flex flex-col gap-2 {{ $reminder->insufficient_funds ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800 ring-2 ring-red-200 dark:ring-red-900/50' : ($reminder->kind === 'loan' ? 'bg-primary-50/50 dark:bg-primary-900/50 border-primary-200 dark:border-primary-800' : 'bg-surface border-default') }}">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-semibold {{ $reminder->insufficient_funds ? 'text-red-900 dark:text-red-200' : 'text-content' }}">{{ $reminder->name }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full {{ $reminder->type_badge_class }}">{{ $reminder->type_label }}</span>
+                        @if($reminder->insufficient_funds)
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-red-600 dark:bg-red-500 text-white font-semibold animate-pulse">Ví không đủ tiền!</span>
+                        @endif
+                    </div>
+                    <p class="text-sm mt-1 {{ $reminder->insufficient_funds ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-slate-500' }}">
+                        {{ number_format($reminder->amount, 0) }} ₫
+                        @if($reminder->wallet)
+                            · Ví: {{ $reminder->wallet->name }}
+                        @endif
+                        · Đến hạn {{ $reminder->due_date->format('d/m/Y') }}
+                    </p>
+                </div>
+                <div class="flex justify-end">
+                    @if($reminder->kind === 'loan')
+                        <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">Thanh toán →</a>
+                    @else
+                        <a href="{{ $reminder->pay_url }}" class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">Ghi giao dịch →</a>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 </div>
 @endsection

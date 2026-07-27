@@ -76,6 +76,36 @@ class WalletController extends Controller
         return redirect()->route('wallets.index')->with('success', 'Đã xóa ví.');
     }
 
+    public function sort()
+    {
+        $wallets = Wallet::where('user_id', auth()->id())
+            ->orderBy('order')
+            ->get();
+
+        return view('wallets.sort', compact('wallets'));
+    }
+
+    public function updateSort(Request $request)
+    {
+        $request->validate([
+            'wallets' => 'required|array',
+            'wallets.*.id' => 'required|exists:wallets,id',
+            'wallets.*.is_pinned' => 'required|boolean',
+            'wallets.*.order' => 'required|integer',
+        ]);
+
+        foreach ($request->input('wallets') as $walletData) {
+            Wallet::where('id', $walletData['id'])
+                ->where('user_id', auth()->id())
+                ->update([
+                    'is_pinned' => $walletData['is_pinned'],
+                    'order' => $walletData['order'],
+                ]);
+        }
+
+        return redirect()->route('wallets.index')->with('success', 'Đã lưu cài đặt hiển thị ví.');
+    }
+
     private function validatedWalletData(Request $request, ?Wallet $wallet = null): array
     {
         $isCreditCard = $request->input('type') === 'credit_card';

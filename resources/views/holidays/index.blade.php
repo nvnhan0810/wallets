@@ -48,6 +48,43 @@
     </div>
 </div>
 
+<!-- Import Holidays -->
+<div class="bg-surface shadow sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium leading-6 text-content mb-2">Import từ Excel / CSV</h3>
+        <p class="text-sm text-content-muted mb-4">
+            File gồm 3 cột: <strong>Ngày</strong> (dd/mm/yyyy), <strong>Tên ngày lễ</strong>, <strong>Loại</strong> (public / bank / custom — có thể để trống).
+            Nếu ngày đã có trong hệ thống thì <strong>cập nhật tên và loại</strong>; ngày mới sẽ được thêm.
+        </p>
+        <form action="{{ route('holidays.import') }}" method="POST" enctype="multipart/form-data" class="flex flex-col gap-4 sm:flex-row sm:items-end">
+            @csrf
+            <div class="flex-1">
+                <label for="file" class="block text-sm font-medium text-content-secondary">Chọn file (.csv, .xlsx, .xls)</label>
+                <input type="file" name="file" id="file" accept=".csv,.txt,.xlsx,.xls" required class="mt-1 block w-full text-sm text-content-secondary file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100">
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('holidays.import.template') }}" class="inline-flex justify-center rounded-md border border-strong bg-surface py-2 px-4 text-sm font-medium text-content shadow-sm hover:bg-surface-hover">
+                    Tải file mẫu (VN 2020–2026)
+                </a>
+                <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 dark:hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                    Import
+                </button>
+            </div>
+        </form>
+
+        @if (session('import_errors') && count(session('import_errors')) > 0)
+            <div class="mt-4 rounded-md bg-amber-50 dark:bg-amber-900/30 p-4">
+                <p class="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Chi tiết lỗi / cảnh báo:</p>
+                <ul class="list-disc list-inside text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                    @foreach (session('import_errors') as $importError)
+                        <li>{{ $importError }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    </div>
+</div>
+
 <!-- Holidays List -->
 <div class="bg-surface shadow overflow-hidden sm:rounded-md">
     <ul role="list" class="divide-y divide-default">
