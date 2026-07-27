@@ -87,7 +87,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-content-secondary">Phí (₫)</label>
-                <x-money-input name="fee" value="0" :disabled="type !== 'transfer'" class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2" />
+                <x-money-input name="fee" value="0" x-bind:disabled="type !== 'transfer'" class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2" />
             </div>
         </div>
 
