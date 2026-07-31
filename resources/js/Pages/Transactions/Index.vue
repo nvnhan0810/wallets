@@ -71,9 +71,12 @@ function deleteTx(tx) {
 <template>
     <Head title="Giao dịch" />
     <AppLayout title="Giao dịch">
-        <div class="md:flex md:items-center md:justify-between mb-6">
+        <div class="md:flex md:items-center md:justify-between mb-6 gap-3">
             <h2 class="text-2xl font-bold text-content">Giao dịch</h2>
-            <Link :href="route('transactions.create')" class="mt-4 md:mt-0 inline-flex px-4 py-2 rounded-md bg-primary-600 dark:bg-primary-500 text-white text-sm font-medium hover:bg-primary-700 dark:hover:bg-primary-600">+ Giao dịch mới</Link>
+            <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+                <Link :href="route('transactions.bulk')" class="inline-flex px-4 py-2 rounded-md border border-strong bg-surface text-sm font-medium text-content-secondary hover:bg-surface-hover">Ghi cả ngày</Link>
+                <Link :href="route('transactions.create')" class="inline-flex px-4 py-2 rounded-md bg-primary-600 dark:bg-primary-500 text-white text-sm font-medium hover:bg-primary-700 dark:hover:bg-primary-600">+ Giao dịch mới</Link>
+            </div>
         </div>
 
         <form class="mb-6 flex flex-wrap gap-3 items-end bg-surface p-4 rounded-lg shadow border border-subtle" @submit.prevent="applyFilters">

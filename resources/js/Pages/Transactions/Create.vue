@@ -108,7 +108,10 @@ function submit() {
     <Head title="Ghi giao dịch" />
     <AppLayout title="Ghi giao dịch">
         <div class="max-w-2xl mx-auto">
-            <h2 class="text-2xl font-bold text-content mb-6">Ghi giao dịch</h2>
+            <div class="mb-6 flex items-center justify-between gap-3">
+                <h2 class="text-2xl font-bold text-content">Ghi giao dịch</h2>
+                <Link :href="route('transactions.bulk')" class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">Ghi cả ngày →</Link>
+            </div>
 
             <form class="bg-surface shadow rounded-lg p-6 space-y-4" @submit.prevent="submit">
                 <div>
