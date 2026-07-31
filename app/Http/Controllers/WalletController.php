@@ -6,6 +6,8 @@ use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use App\Support\InertiaData;
 use Wallets\Shared\Application\CommandBus;
 use Wallets\Shared\Application\QueryBus;
 use Wallets\WalletAccounting\Application\Command\CreateWallet;
@@ -28,12 +30,18 @@ class WalletController extends Controller
             withTransactionCount: true,
         ));
 
-        return view('wallets.index', compact('wallets'));
+        return Inertia::render('Wallets/Index', [
+            'wallets' => InertiaData::wallets($wallets, withCount: true),
+            'walletTypes' => Wallet::TYPES,
+        ]);
     }
 
     public function create()
     {
-        return view('wallets.create');
+        return Inertia::render('Wallets/Form', [
+            'wallet' => null,
+            'walletTypes' => Wallet::TYPES,
+        ]);
     }
 
     public function store(Request $request)
@@ -48,7 +56,10 @@ class WalletController extends Controller
 
     public function edit(Wallet $wallet)
     {
-        return view('wallets.edit', compact('wallet'));
+        return Inertia::render('Wallets/Form', [
+            'wallet' => InertiaData::wallet($wallet),
+            'walletTypes' => Wallet::TYPES,
+        ]);
     }
 
     public function update(Request $request, Wallet $wallet)

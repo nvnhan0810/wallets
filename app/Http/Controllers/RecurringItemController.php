@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\RecurringItem;
+use App\Support\InertiaData;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Wallets\RecurringPlanning\Application\Command\CreateRecurringItem;
 use Wallets\RecurringPlanning\Application\Command\DeleteRecurringItem;
 use Wallets\RecurringPlanning\Application\Command\UpdateRecurringItem;
@@ -24,7 +26,27 @@ class RecurringItemController extends Controller
         $items = $this->queries->ask(new ListRecurringItems(userId: auth()->id()));
         $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
-        return view('recurring-items.index', compact('items', 'wallets'));
+        return Inertia::render('RecurringItems/Index', [
+            'items' => collect($items)->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'type' => $item->type,
+                    'amount' => (float) $item->amount,
+                    'wallet_id' => $item->wallet_id,
+                    'wallet_name' => $item->wallet->name ?? null,
+                    'day_of_month' => $item->day_of_month,
+                    'effective_from' => optional($item->effective_from)?->toDateString(),
+                    'ends_at' => optional($item->ends_at)?->toDateString(),
+                    'note' => $item->note,
+                    'is_active' => (bool) $item->is_active,
+                    'next_due' => isset($item->next_due) ? (string) $item->next_due : null,
+                    'days_until' => $item->days_until ?? null,
+                    'insufficient_funds' => (bool) ($item->insufficient_funds ?? false),
+                ];
+            })->values()->all(),
+            'wallets' => InertiaData::wallets($wallets),
+        ]);
     }
 
     public function store(Request $request)

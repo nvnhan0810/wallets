@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Loan;
+use App\Support\InertiaData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Inertia\Inertia;
 use Wallets\Lending\Application\Command\CreateLoan;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\Command\SettleLoan;
@@ -29,11 +31,30 @@ class LoanController extends Controller
         $result = $this->queries->ask(new ListActiveLoans(userId: auth()->id()));
         $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
-        return view('loans.index', [
-            'loans' => $result['loans'],
+        return Inertia::render('Loans/Index', [
+            'loans' => collect($result['loans'])->map(function ($loan) {
+                return [
+                    'id' => $loan->id,
+                    'name' => $loan->name,
+                    'type' => $loan->type,
+                    'principal_amount' => (float) $loan->principal_amount,
+                    'monthly_payment' => (float) ($loan->monthly_payment ?? 0),
+                    'wallet_id' => $loan->wallet_id,
+                    'interest_rate' => (float) ($loan->interest_rate ?? 0),
+                    'interest_calculation_method' => $loan->interest_calculation_method,
+                    'term_months' => $loan->term_months,
+                    'months_passed' => $loan->months_passed ?? null,
+                    'remaining_months' => $loan->remaining_months ?? null,
+                    'remaining_principal' => isset($loan->remaining_principal) ? (float) $loan->remaining_principal : null,
+                    'remaining_interest' => isset($loan->remaining_interest) ? (float) $loan->remaining_interest : null,
+                    'remaining_amount' => isset($loan->remaining_amount) ? (float) $loan->remaining_amount : null,
+                    'payoff_remaining' => (float) ($loan->payoff_remaining ?? 0),
+                    'started_at' => optional($loan->started_at)?->toDateString(),
+                ];
+            })->values()->all(),
             'totalRemaining' => $result['totalRemaining'],
             'totalLendRemaining' => $result['totalLendRemaining'],
-            'wallets' => $wallets,
+            'wallets' => InertiaData::wallets($wallets),
         ]);
     }
 
@@ -44,14 +65,40 @@ class LoanController extends Controller
             loanId: $loan->id,
         ));
 
-        return view('loans.show', $data);
+        $loanModel = $data['loan'];
+        $data['loan'] = [
+            'id' => $loanModel->id,
+            'name' => $loanModel->name,
+            'type' => $loanModel->type,
+            'principal_amount' => (float) $loanModel->principal_amount,
+            'interest_rate' => (float) ($loanModel->interest_rate ?? 0),
+            'interest_calculation_method' => $loanModel->interest_calculation_method,
+            'term_months' => $loanModel->term_months,
+            'monthly_payment' => (float) ($loanModel->monthly_payment ?? 0),
+            'remaining_principal' => isset($loanModel->remaining_principal) ? (float) $loanModel->remaining_principal : null,
+            'started_at' => optional($loanModel->started_at)?->format('d/m/Y'),
+            'wallet' => $loanModel->wallet ? ['id' => $loanModel->wallet->id, 'name' => $loanModel->wallet->name] : null,
+            'payments' => $loanModel->payments->map(fn ($p) => [
+                'id' => $p->id,
+                'amount' => (float) $p->amount,
+                'paid_at' => optional($p->paid_at)?->format('d/m/Y'),
+                'note' => $p->note,
+                'kind_label' => method_exists($p, 'kindLabel') ? $p->kindLabel() : ($p->kind ?? ''),
+                'is_early' => method_exists($p, 'isEarly') ? $p->isEarly() : false,
+                'period_due_date' => $p->period_due_date ?? null,
+            ])->values()->all(),
+        ];
+
+        return Inertia::render('Loans/Show', $data);
     }
 
     public function create()
     {
         $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
-        return view('loans.create', compact('wallets'));
+        return Inertia::render('Loans/Create', [
+            'wallets' => InertiaData::wallets($wallets),
+        ]);
     }
 
     public function store(Request $request)

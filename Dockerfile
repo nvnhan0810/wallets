@@ -36,16 +36,26 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts \
     && php artisan package:discover --ansi
 
 # -----------------------------------------------------------------------------
-# Frontend assets (Vite)
+# Frontend assets (Vite + Vue 3 / Inertia)
 # -----------------------------------------------------------------------------
 FROM node:22-bookworm-slim AS assets
 
 WORKDIR /app
+
+# Install JS deps first (layer cache). Include devDependencies for Vite/Vue build.
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY --from=vendor /app /app
-RUN npm run build
+# App source (incl. vendor/tightenco/ziggy imported by resources/js/app.js).
+# Copy without clobbering node_modules from npm ci above.
+COPY --from=vendor /app /tmp/app
+RUN rm -rf /tmp/app/node_modules \
+    && cp -a /tmp/app/. ./ \
+    && rm -rf /tmp/app
+
+ENV NODE_ENV=production
+RUN npm run build \
+    && test -f public/build/manifest.json
 
 # -----------------------------------------------------------------------------
 # Production runtime (nginx + php-fpm + queue + schedule)
@@ -104,8 +114,9 @@ COPY --from=vendor /app/artisan ./artisan
 COPY --from=vendor /app/composer.json ./composer.json
 COPY --from=vendor /app/composer.lock ./composer.lock
 
-COPY --from=assets /app/public/build ./public/build
+# Base public/ first, then Vite build so manifest + hashed assets win.
 COPY public ./public
+COPY --from=assets /app/public/build ./public/build
 
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/public bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
