@@ -126,8 +126,7 @@ class TransactionController extends Controller
     {
         $validated = $request->validate([
             'wallet_id' => 'required|exists:wallets,id',
-            'adjustment_direction' => 'required|in:increase,decrease',
-            'amount' => 'required|numeric|min:0.01',
+            'target_balance' => 'required|numeric|min:0',
             'description' => 'required|string|max:255',
             'transacted_at' => 'required|string',
             'note' => 'nullable|string',
@@ -137,14 +136,18 @@ class TransactionController extends Controller
         ]);
 
         $validated['transacted_at'] = $this->convertDateFormat($validated['transacted_at']);
-        $validated['amount'] = abs((float) $validated['amount']);
+        $validated['target_balance'] = (float) $validated['target_balance'];
 
-        $this->commands->dispatch(new RecordAdjustment(
-            userId: auth()->id(),
-            data: $validated,
-            saveAsTemplate: $request->boolean('save_as_template'),
-            templateName: $validated['template_name'] ?? null,
-        ));
+        try {
+            $this->commands->dispatch(new RecordAdjustment(
+                userId: auth()->id(),
+                data: $validated,
+                saveAsTemplate: $request->boolean('save_as_template'),
+                templateName: $validated['template_name'] ?? null,
+            ));
+        } catch (DomainException $e) {
+            return back()->withInput()->withErrors(['target_balance' => $e->getMessage()]);
+        }
 
         return redirect()->route('transactions.index')->with('success', 'Đã ghi cân đối số dư ví.');
     }

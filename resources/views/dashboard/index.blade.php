@@ -90,7 +90,7 @@
         </div>
         @empty
         <div class="w-full bg-surface rounded-2xl border border-dashed border-strong p-8 text-center text-sm text-content-muted shadow-sm">
-            Chưa có ví nào được ghim. <br><a href="{{ route('wallets.sort') }}" class="text-primary-600 dark:text-primary-400 font-semibold hover:underline mt-2 inline-block">Cài đặt ví ngay</a>
+            Chưa có ví nào được ghim. <br><a href="{{ route('wallets.index') }}" class="text-primary-600 dark:text-primary-400 font-semibold hover:underline mt-2 inline-block">Ghim ví trên trang Ví</a>
         </div>
         @endforelse
     </div>
@@ -221,7 +221,7 @@
         </div>
         <div class="bg-surface shadow-sm rounded-2xl border border-subtle overflow-hidden">
             @forelse($recentTransactions as $tx)
-            <a href="{{ route('transactions.edit', $tx) }}" class="block px-5 py-4 border-b border-subtle last:border-0 hover:bg-surface-hover transition-colors">
+            <div class="block px-5 py-4 border-b border-subtle last:border-0">
                 <div class="flex justify-between items-center gap-4">
                     <div class="flex items-center gap-4 overflow-hidden">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 {{ $tx->type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' }}">
@@ -240,7 +240,7 @@
                         {{ $tx->type === 'income' ? '+' : '-' }}{{ number_format($tx->amount, 0) }} ₫
                     </p>
                 </div>
-            </a>
+            </div>
             @empty
             <div class="px-5 py-8 text-sm text-content-muted text-center flex flex-col items-center">
                 <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>

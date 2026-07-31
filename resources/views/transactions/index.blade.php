@@ -73,9 +73,7 @@
             <div class="divide-y divide-subtle">
                 @foreach($txs as $tx)
                 <div class="p-4 flex items-center justify-between hover:bg-surface-hover transition-colors relative group">
-                    <a href="{{ route('transactions.edit', $tx) }}" class="absolute inset-0 z-0"></a>
-                    
-                    <div class="flex items-center gap-4 relative z-10 pointer-events-none">
+                    <div class="flex items-center gap-4">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 {{ $tx->type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : ($tx->isTransfer() ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : ($tx->isAdjustment() ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400')) }}">
                             @if($tx->type === 'income')
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m0-16l-4 4m4-4l4 4"></path></svg>
@@ -110,7 +108,7 @@
                         </div>
                     </div>
                     
-                    <div class="flex flex-col items-end relative z-10">
+                    <div class="flex flex-col items-end">
                         <p class="font-bold text-sm {{ $tx->displayColorClass() }}">
                             {{ $tx->signedAmountForDisplay() }} ₫
                         </p>
