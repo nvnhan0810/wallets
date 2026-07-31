@@ -15,6 +15,7 @@ final class ListWalletsHandler implements QueryHandler
 
         $q = Wallet::query()
             ->forUser($query->userId)
+            ->orderByDesc('is_pinned')
             ->orderByDesc('is_active')
             ->orderBy('order')
             ->orderBy('name');

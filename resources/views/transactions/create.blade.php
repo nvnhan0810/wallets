@@ -15,24 +15,26 @@
         'to_wallet_id' => $t->to_wallet_id,
         'adjustment_direction' => $t->adjustment_direction,
     ])->values();
+    $walletBalances = $wallets->mapWithKeys(fn ($w) => [(string) $w->id => (float) $w->balance]);
+    $defaultWalletId = old('wallet_id', $prefill['wallet_id'] ?? $selectedTemplate?->default_wallet_id ?? $wallets->first()?->id ?? '');
     $initial = [
         'template_id' => old('transaction_template_id', $selectedTemplate?->id ?? ''),
-        'wallet_id' => old('wallet_id', $prefill['wallet_id'] ?? $selectedTemplate?->default_wallet_id ?? ''),
+        'wallet_id' => $defaultWalletId,
         'from_wallet_id' => old('from_wallet_id', $selectedTemplate?->from_wallet_id ?? ''),
         'to_wallet_id' => old('to_wallet_id', $selectedTemplate?->to_wallet_id ?? ''),
         'type' => old('type', $prefill['type'] ?? $selectedTemplate?->type ?? 'expense'),
         'amount' => old('amount', $prefill['amount'] ?? $selectedTemplate?->amount ?? ''),
+        'target_balance' => old('target_balance', ''),
         'fee' => old('fee', $selectedTemplate?->fee ?? 0),
         'description' => old('description', $prefill['description'] ?? $selectedTemplate?->description ?? ''),
         'category' => old('category', $prefill['category'] ?? $selectedTemplate?->category ?? ''),
-        'adjustment_direction' => old('adjustment_direction', $selectedTemplate?->adjustment_direction ?? 'increase'),
         'from_template' => (bool) ($selectedTemplate || old('transaction_template_id')),
         'save_as_template' => (bool) old('save_as_template'),
         'template_name' => old('template_name', ''),
     ];
 @endphp
 
-<div class="max-w-2xl mx-auto" x-data="transactionForm(@js($templateData), @js($initial))">
+<div class="max-w-2xl mx-auto" x-data="transactionForm(@js($templateData), @js($walletBalances), @js($initial))">
     <h2 class="text-2xl font-bold text-content mb-6">Ghi giao dịch</h2>
     @include('partials.flash')
 
@@ -94,28 +96,31 @@
         {{-- Cân đối --}}
         <template x-if="type === 'adjustment'">
             <div class="space-y-4 rounded-lg border border-amber-200 bg-amber-50/30 p-4">
-                <p class="text-xs text-amber-800">Điều chỉnh số dư ví cho khớp sổ sách / thực tế, không phải thu chi thật.</p>
+                <p class="text-xs text-amber-800">Nhập số dư cuối cùng cần khớp. Hệ thống tự tính mức tăng/giảm so với số dư hiện tại.</p>
+                <div>
+                    <label class="block text-sm font-medium text-content-secondary">Ví</label>
+                    <select name="wallet_id" x-model="wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
+                        @foreach($wallets as $w)
+                            <option value="{{ $w->id }}">{{ $w->name }} ({{ number_format($w->balance, 0) }} ₫)</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                        <select name="wallet_id" x-model="wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                            @foreach($wallets as $w)
-                                <option value="{{ $w->id }}">{{ $w->name }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-sm font-medium text-content-secondary">Số dư hiện tại</label>
+                        <p class="mt-1 block w-full rounded-md border border-subtle bg-app text-content p-2 text-sm font-semibold" x-text="formatMoney(currentBalance())"></p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-content-secondary">Hướng cân đối</label>
-                        <select name="adjustment_direction" x-model="adjustment_direction" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option value="increase">Tăng số dư</option>
-                            <option value="decrease">Giảm số dư</option>
-                        </select>
+                        <label class="block text-sm font-medium text-content-secondary">Số dư cuối cùng (₫)</label>
+                        <x-money-input name="target_balance" alpine-model="target_balance" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
+                        @error('target_balance')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-content-secondary">Số tiền điều chỉnh (₫)</label>
-                    <x-money-input name="amount" alpine-model="amount" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2" />
-                </div>
+                <p class="text-xs text-amber-900" x-show="adjustmentPreview()" x-cloak>
+                    Điều chỉnh: <span class="font-semibold" x-text="adjustmentPreview()"></span>
+                </p>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Lý do</label>
                     <input type="text" name="description" x-model="description" required placeholder="VD: Đối chiếu sao kê tháng 5" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
@@ -192,24 +197,39 @@
 </div>
 
 <script>
-function transactionForm(templates, initial) {
+function transactionForm(templates, walletBalances, initial) {
     return {
         templates,
+        walletBalances,
         template_id: initial.template_id || '',
         wallet_id: String(initial.wallet_id || ''),
         from_wallet_id: String(initial.from_wallet_id || ''),
         to_wallet_id: String(initial.to_wallet_id || ''),
         type: initial.type || 'expense',
         amount: initial.amount || '',
+        target_balance: initial.target_balance === '' || initial.target_balance === null ? '' : Number(initial.target_balance),
         fee: initial.fee || 0,
         description: initial.description || '',
         category: initial.category || '',
-        adjustment_direction: initial.adjustment_direction || 'increase',
         from_template: initial.from_template || false,
         save_as_template: initial.save_as_template || false,
         template_name: initial.template_name || '',
         formatMoney(n) {
-            return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫';
+            return new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)) + ' ₫';
+        },
+        currentBalance() {
+            const bal = this.walletBalances[String(this.wallet_id)];
+            return bal == null ? 0 : Number(bal);
+        },
+        adjustmentDelta() {
+            if (this.target_balance === '' || this.target_balance === null) return null;
+            return Math.round(Number(this.target_balance) - this.currentBalance());
+        },
+        adjustmentPreview() {
+            const delta = this.adjustmentDelta();
+            if (delta === null || !Number.isFinite(delta) || delta === 0) return '';
+            const sign = delta > 0 ? '+' : '−';
+            return sign + this.formatMoney(Math.abs(delta)).replace(' ₫', '') + ' ₫';
         },
         applyTemplate(id) {
             if (!id) {
@@ -226,10 +246,13 @@ function transactionForm(templates, initial) {
             this.fee = t.fee || 0;
             this.description = t.description || t.name;
             this.category = t.category || '';
-            this.adjustment_direction = t.adjustment_direction || 'increase';
             if (t.default_wallet_id) this.wallet_id = String(t.default_wallet_id);
             if (t.from_wallet_id) this.from_wallet_id = String(t.from_wallet_id);
             if (t.to_wallet_id) this.to_wallet_id = String(t.to_wallet_id);
+            if (t.type === 'adjustment') {
+                const signed = (t.adjustment_direction === 'decrease' ? -1 : 1) * Number(t.amount || 0);
+                this.target_balance = this.currentBalance() + signed;
+            }
         },
         init() {
             if (this.template_id) this.applyTemplate(this.template_id);

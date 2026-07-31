@@ -78,18 +78,14 @@ class WalletController extends Controller
 
     public function sort()
     {
-        $wallets = Wallet::where('user_id', auth()->id())
-            ->orderBy('order')
-            ->get();
-
-        return view('wallets.sort', compact('wallets'));
+        return redirect()->route('wallets.index');
     }
 
     public function updateSort(Request $request)
     {
         $request->validate([
             'wallets' => 'required|array',
-            'wallets.*.id' => 'required|exists:wallets,id',
+            'wallets.*.id' => 'required|integer|exists:wallets,id',
             'wallets.*.is_pinned' => 'required|boolean',
             'wallets.*.order' => 'required|integer',
         ]);
@@ -103,7 +99,11 @@ class WalletController extends Controller
                 ]);
         }
 
-        return redirect()->route('wallets.index')->with('success', 'Đã lưu cài đặt hiển thị ví.');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()->route('wallets.index')->with('success', 'Đã lưu thứ tự ví.');
     }
 
     private function validatedWalletData(Request $request, ?Wallet $wallet = null): array
