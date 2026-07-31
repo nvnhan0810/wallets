@@ -7,13 +7,9 @@
         "dev": "vite"
     },
     "devDependencies": {
-        "@tailwindcss/vite": "^4.0.0",
         "@types/sortablejs": "^1.15.9",
         "axios": "^1.11.0",
-        "concurrently": "^9.0.1",
-        "laravel-vite-plugin": "^2.0.0",
-        "tailwindcss": "^4.0.0",
-        "vite": "^7.3.6"
+        "concurrently": "^9.0.1"
     },
     "allowScripts": {
         "esbuild@0.27.7": true
@@ -24,6 +20,10 @@
         "chart.js": "^4.5.1",
         "flatpickr": "^4.6.13",
         "sortablejs": "^1.15.7",
-        "vue": "^3.5.40"
+        "vue": "^3.5.40",
+        "vite": "^7.3.6",
+        "laravel-vite-plugin": "^2.0.0",
+        "@tailwindcss/vite": "^4.0.0",
+        "tailwindcss": "^4.0.0"
     }
 }
