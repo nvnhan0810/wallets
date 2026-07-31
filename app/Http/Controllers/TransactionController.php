@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Transaction;
+use App\Support\InertiaData;
 use DomainException;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Wallets\Catalog\Application\Query\ListTemplates;
 use Wallets\Shared\Application\CommandBus;
 use Wallets\Shared\Application\QueryBus;
@@ -34,7 +36,17 @@ class TransactionController extends Controller
         ));
         $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
-        return view('transactions.index', compact('transactions', 'wallets'));
+        $items = $transactions->getCollection()->map(fn ($tx) => InertiaData::transaction($tx))->values();
+        $transactions->setCollection($items);
+
+        return Inertia::render('Transactions/Index', [
+            'transactions' => InertiaData::paginator($transactions),
+            'wallets' => InertiaData::wallets($wallets),
+            'filters' => [
+                'wallet_id' => $request->input('wallet_id'),
+                'type' => $request->input('type'),
+            ],
+        ]);
     }
 
     public function create(Request $request)
@@ -56,7 +68,26 @@ class TransactionController extends Controller
             'recurring_occurrence_id' => $request->integer('recurring_occurrence_id') ?: null,
         ];
 
-        return view('transactions.create', compact('wallets', 'templates', 'selectedTemplate', 'prefill'));
+        return Inertia::render('Transactions/Create', [
+            'wallets' => InertiaData::wallets($wallets),
+            'templates' => $templates->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'type' => $t->type,
+                'type_label' => $t->typeLabel(),
+                'amount' => (float) $t->amount,
+                'fee' => (float) ($t->fee ?? 0),
+                'category' => $t->category,
+                'description' => $t->description,
+                'default_wallet_id' => $t->default_wallet_id,
+                'from_wallet_id' => $t->from_wallet_id,
+                'to_wallet_id' => $t->to_wallet_id,
+                'adjustment_direction' => $t->adjustment_direction,
+            ])->values()->all(),
+            'selectedTemplateId' => $selectedTemplate?->id,
+            'prefill' => $prefill,
+            'walletBalances' => $wallets->mapWithKeys(fn ($w) => [(string) $w->id => (float) $w->balance]),
+        ]);
     }
 
     public function store(Request $request)

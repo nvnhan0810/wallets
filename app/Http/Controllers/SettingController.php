@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Wallets\Preferences\Application\Command\UpdateSettings;
 use Wallets\Preferences\Application\Query\GetSettings;
 use Wallets\Shared\Application\CommandBus;
@@ -22,7 +23,7 @@ class SettingController extends Controller
         $telegramChatId = $settings['telegram_chat_id'];
         $telegramEnabled = $settings['telegram_enabled'];
 
-        return view('settings.index', compact('recurringAlertDays', 'telegramChatId', 'telegramEnabled'));
+        return Inertia::render('Settings/Index', compact('recurringAlertDays', 'telegramChatId', 'telegramEnabled'));
     }
 
     public function update(Request $request)

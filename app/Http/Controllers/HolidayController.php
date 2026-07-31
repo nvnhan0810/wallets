@@ -6,6 +6,7 @@ use App\Http\Concerns\ConvertsVietnameseDates;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Wallets\Calendar\Application\Command\CreateHoliday;
 use Wallets\Calendar\Application\Command\DeleteHoliday;
@@ -29,7 +30,22 @@ class HolidayController extends Controller
     {
         $holidays = $this->queries->ask(new ListHolidays);
 
-        return view('holidays.index', compact('holidays'));
+        return Inertia::render('Holidays/Index', [
+            'holidays' => [
+                'data' => $holidays->getCollection()->map(fn ($h) => [
+                    'id' => $h->id,
+                    'name' => $h->name,
+                    'date' => optional($h->date)?->format('d/m/Y'),
+                    'type' => $h->type,
+                ])->values()->all(),
+                'links' => $holidays->linkCollection()->toArray(),
+                'meta' => [
+                    'current_page' => $holidays->currentPage(),
+                    'last_page' => $holidays->lastPage(),
+                    'total' => $holidays->total(),
+                ],
+            ],
+        ]);
     }
 
     public function store(Request $request)

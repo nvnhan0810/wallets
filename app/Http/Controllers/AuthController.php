@@ -7,7 +7,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
 use Wallets\Identity\Application\Query\IsEmailAllowed;
 use Wallets\Shared\Application\QueryBus;
@@ -16,13 +17,13 @@ class AuthController extends Controller
 {
     public function __construct(private readonly QueryBus $queries) {}
 
-    public function showLogin(): View|RedirectResponse
+    public function showLogin(): Response|RedirectResponse
     {
         if (Auth::check()) {
             return redirect()->route('dashboard');
         }
 
-        return view('auth.login');
+        return Inertia::render('Auth/Login');
     }
 
     public function redirectGoogle(): RedirectResponse
