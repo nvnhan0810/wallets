@@ -25,10 +25,13 @@ class LoanPaymentScheduleService
 
     public function periodDueDate(Loan $loan, array $scheduleRow): Carbon
     {
-        if (($loan->interest_calculation_method ?? 'monthly') === 'daily') {
+        if (in_array($loan->interest_calculation_method ?? 'monthly', ['daily', 'homecredit'], true)) {
             $date = $scheduleRow['date'] ?? null;
             if ($date instanceof \DateTimeInterface) {
                 return Carbon::instance(\DateTime::createFromInterface($date))->startOfDay();
+            }
+            if (! empty($scheduleRow['due_date'])) {
+                return Carbon::parse($scheduleRow['due_date'])->startOfDay();
             }
         }
 
@@ -115,17 +118,37 @@ class LoanPaymentScheduleService
             ->where('status', \App\Models\LoanCustomSchedule::STATUS_PAID)
             ->max('month_index');
 
+        $fromDueDates = $this->monthsElapsedByDueDate($loan, $schedule);
+
         $cutoff = $this->principalReductionCutoff();
 
         if (Carbon::today()->gte($cutoff)) {
-            return min(max($fromPayments, $fromSchedules, (int) $loan->months_paid), $maxIndex);
+            return min(max($fromPayments, $fromSchedules, (int) $loan->months_paid, $fromDueDates), $maxIndex);
         }
 
         $legacy = $loan->months_paid > 0
             ? (int) $loan->months_paid
             : (int) $loan->started_at->diffInMonths(Carbon::now());
 
-        return min(max($legacy, $fromPayments, $fromSchedules), $maxIndex);
+        return min(max($legacy, $fromPayments, $fromSchedules, $fromDueDates), $maxIndex);
+    }
+
+    /**
+     * Kỳ có ngày đến hạn đã qua (trước hôm nay) — dùng để tự tiến months_paid / lãi còn lại.
+     */
+    public function monthsElapsedByDueDate(Loan $loan, Collection $schedule): int
+    {
+        $today = Carbon::today()->startOfDay();
+        $elapsed = 0;
+
+        foreach ($schedule as $row) {
+            $due = $this->periodDueDate($loan, $row);
+            if ($due->lt($today)) {
+                $elapsed = max($elapsed, (int) $row['month_index']);
+            }
+        }
+
+        return $elapsed;
     }
 
     public function remainingPrincipalAt(Loan $loan, Collection $schedule, int $monthsPassed): float
@@ -196,6 +219,72 @@ class LoanPaymentScheduleService
         }
 
         return $timeline;
+    }
+
+    /**
+     * Normalize timeline dates/models for Inertia JSON (avoid DateTime → [object Object]).
+     *
+     * @param  Collection<int, array<string, mixed>>  $timeline
+     * @return list<array<string, mixed>>
+     */
+    public function serializeTimeline(Collection $timeline): array
+    {
+        return $timeline->map(function (array $row): array {
+            $period = $row['period'] ?? null;
+            if (is_array($period)) {
+                $period = [
+                    ...$period,
+                    'date' => $this->toDateString($period['date'] ?? null),
+                    'theoretical_date' => $this->toDateString($period['theoretical_date'] ?? null),
+                ];
+            }
+
+            $payment = $row['payment'] ?? null;
+            if ($payment instanceof Payment) {
+                $payment = [
+                    'id' => $payment->id,
+                    'amount' => (float) $payment->amount,
+                    'paid_at' => optional($payment->paid_at)?->toDateString(),
+                    'note' => $payment->note,
+                ];
+            }
+
+            $periodPayment = $row['period_payment'] ?? null;
+            if ($periodPayment instanceof Payment) {
+                $periodPayment = [
+                    'id' => $periodPayment->id,
+                    'amount' => (float) $periodPayment->amount,
+                    'paid_at' => optional($periodPayment->paid_at)?->toDateString(),
+                ];
+            }
+
+            return [
+                'type' => $row['type'],
+                'period' => $period,
+                'period_due_date' => $this->toDateString($row['period_due_date'] ?? null),
+                'is_paid' => (bool) ($row['is_paid'] ?? false),
+                'period_payment' => $periodPayment,
+                'payment' => $payment,
+                'note' => $row['note'] ?? null,
+            ];
+        })->values()->all();
+    }
+
+    public function toDateString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_string($value)) {
+            return Carbon::parse($value)->toDateString();
+        }
+
+        return null;
     }
 
     public function hasEarlyPaymentForDueDate(Loan $loan, Carbon $dueDate): bool

@@ -8,30 +8,34 @@ import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
     wallets: { type: Array, default: () => [] },
+    draft: { type: Object, default: null },
 });
 
 const confirmOpen = ref(false);
 const monthsPaidManual = ref(false);
 const receivedTouched = ref(false);
 
+const draft = (props.draft ?? {}) as Record<string, unknown>;
+
 const form = useForm({
-    type: 'bank',
-    name: '',
-    principal_amount: 0,
-    started_at: todayVi(),
-    wallet_id: '',
-    record_cash_flow: true,
-    received_amount: 0,
-    interest_rate: 10,
-    interest_calculation_method: 'monthly',
-    term_months: 12,
-    months_paid: 0,
-    monthly_payment: 0,
-    payment_day: 25,
+    type: (draft.type as string) || 'bank',
+    name: (draft.name as string) || '',
+    principal_amount: Number(draft.principal_amount ?? 0),
+    started_at: (draft.started_at as string) || todayVi(),
+    wallet_id: draft.wallet_id != null ? String(draft.wallet_id) : '',
+    record_cash_flow: draft.record_cash_flow !== undefined ? Boolean(draft.record_cash_flow) : true,
+    received_amount: Number(draft.received_amount ?? draft.principal_amount ?? 0),
+    interest_rate: Number(draft.interest_rate ?? 10),
+    interest_calculation_method: (draft.interest_calculation_method as string) || 'homecredit',
+    term_months: Number(draft.term_months ?? 12),
+    months_paid: Number(draft.months_paid ?? 0),
+    monthly_payment: Number(draft.monthly_payment ?? 0),
+    collection_fee: Number(draft.collection_fee ?? 0),
+    payment_day: Number(draft.payment_day ?? 25),
     custom_schedule: [],
 });
 
-const customSchedule = ref([]);
+const customSchedule = ref<Array<{ month_index: number; paid_at: string; principal: number; interest: number }>>([]);
 
 const startsToday = computed(() => {
     const parts = String(form.started_at || '').split('/');
@@ -43,12 +47,25 @@ const startsToday = computed(() => {
 });
 
 const walletName = computed(() => {
-    const w = props.wallets.find((x) => String(x.id) === String(form.wallet_id));
+    const w = props.wallets.find((x: { id: number | string }) => String(x.id) === String(form.wallet_id)) as { name?: string } | undefined;
     return w?.name ?? '';
 });
 
 const typeLabel = computed(() => ({ bank: 'Vay ngân hàng', borrow: 'Mượn nợ', lend: 'Cho mượn' }[form.type] || form.type));
-const methodLabel = computed(() => ({ monthly: 'Theo tháng', daily: 'Theo ngày (Actual/365)', custom: 'Tùy chỉnh' }[form.interest_calculation_method] || form.interest_calculation_method));
+const methodLabel = computed(() => ({
+    monthly: 'Theo tháng',
+    daily: 'Theo ngày (Actual/365)',
+    homecredit: 'Home Credit (EMI + Actual/365)',
+    custom: 'Tùy chỉnh',
+}[form.interest_calculation_method] || form.interest_calculation_method));
+
+const needsSchedulePreview = computed(() =>
+    form.type === 'bank'
+    && form.interest_calculation_method !== 'custom'
+    && Number(form.interest_rate) > 0
+    && Number(form.term_months) > 0
+    && Number(form.principal_amount) > 0,
+);
 
 function calculateMonthly() {
     if (form.type === 'bank' && form.principal_amount > 0 && form.interest_rate > 0 && form.term_months > 0 && form.interest_calculation_method !== 'custom') {
@@ -87,7 +104,7 @@ function addCustomRow() {
     customSchedule.value.push({ month_index: customSchedule.value.length + 1, paid_at: '', principal: 0, interest: 0 });
 }
 
-function syncCustomRows(newMonths, oldMonths) {
+function syncCustomRows(newMonths: number, oldMonths: number) {
     if (!newMonths || newMonths < 1) return;
     if (oldMonths && newMonths < oldMonths) {
         if (!confirm('Giảm số tháng sẽ xóa các dòng cuối. Tiếp tục?')) {
@@ -108,39 +125,20 @@ function updateCustomDates() {
     customSchedule.value.forEach((row, idx) => {
         const d = new Date(base);
         d.setMonth(d.getMonth() + idx + 1);
-        row.paid_at = d.toISOString().split('T')[0];
+        row.paid_at = d.toISOString().split('T')[0] ?? '';
         row.month_index = idx + 1;
     });
 }
 
-function computedFee(row) {
+function computedFee(row: { principal: number; interest: number }) {
     return (form.monthly_payment || 0) - (Number(row.principal || 0) + Number(row.interest || 0));
 }
 
-function rowValid(row) {
+function rowValid(row: { principal: number; interest: number }) {
     const fee = computedFee(row);
     const sum = Number(row.principal || 0) + Number(row.interest || 0) + Number(fee || 0);
     return fee >= 0 && Math.round(sum) === Math.round(form.monthly_payment || 0);
 }
-
-function calculatePreview() {
-    const items = [];
-    if (form.principal_amount > 0 && form.interest_rate > 0 && form.term_months > 0) {
-        let balance = form.principal_amount;
-        const r = (form.interest_rate / 100) / 12;
-        const m = form.monthly_payment;
-        for (let i = 0; i < form.term_months; i++) {
-            if (balance <= 0) break;
-            const interest = balance * r;
-            const principalPaid = m - interest;
-            balance -= principalPaid;
-            items.push({ interest, principal: principalPaid, total: m });
-        }
-    }
-    return items;
-}
-
-const previewItems = computed(() => calculatePreview());
 
 watch(() => form.principal_amount, (val) => {
     calculateMonthly();
@@ -165,8 +163,12 @@ watch(() => form.interest_calculation_method, (newVal) => {
     }
 });
 
-function onSubmit(e) {
+function onSubmit(e: Event) {
     e.preventDefault();
+    if (needsSchedulePreview.value) {
+        form.post(route('loans.preview'));
+        return;
+    }
     confirmOpen.value = true;
 }
 
@@ -185,8 +187,10 @@ function confirmSubmit() {
     form.post(route('loans.store'));
 }
 
-calculateMonthly();
-syncMonthsPaid(true);
+if (!draft.monthly_payment) {
+    calculateMonthly();
+}
+syncMonthsPaid(!draft.months_paid);
 </script>
 
 <template>
@@ -261,6 +265,7 @@ syncMonthsPaid(true);
                                 <div class="col-span-6 sm:col-span-4">
                                     <label class="block text-sm font-medium text-content-secondary">Phương pháp tính lãi</label>
                                     <select v-model="form.interest_calculation_method" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm">
+                                        <option value="homecredit">Home Credit (EMI + Actual/365)</option>
                                         <option value="monthly">Lãi suất cố định theo tháng (Đơn giản)</option>
                                         <option value="daily">Tính theo ngày thực tế (Actual/365 - Ngân hàng)</option>
                                         <option value="custom">Tùy chỉnh thủ công từng tháng</option>
@@ -275,10 +280,17 @@ syncMonthsPaid(true);
                                     <input v-model.number="form.months_paid" type="number" min="0" :max="form.term_months || undefined" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm" @input="monthsPaidManual = true" />
                                 </div>
                                 <div class="col-span-6 sm:col-span-2">
-                                    <label class="block text-sm font-medium text-content-secondary">{{ form.interest_calculation_method !== 'custom' ? 'Đóng hàng tháng (Dự tính)' : 'Tổng trả hàng tháng (Custom)' }}</label>
+                                    <label class="block text-sm font-medium text-content-secondary">{{ form.interest_calculation_method !== 'custom' ? 'Đóng hàng tháng (EMI)' : 'Tổng trả hàng tháng (Custom)' }}</label>
                                     <div class="field-money">
-                                        <MoneyInput v-model="form.monthly_payment" :readonly="form.interest_calculation_method !== 'custom'" />
+                                        <MoneyInput v-model="form.monthly_payment" />
                                     </div>
+                                </div>
+                                <div class="col-span-6 sm:col-span-2">
+                                    <label class="block text-sm font-medium text-content-secondary">Phí thu hộ / kỳ</label>
+                                    <div class="field-money">
+                                        <MoneyInput v-model="form.collection_fee" />
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-content-muted">Trừ trước từ EMI, còn lại mới trừ lãi rồi gốc.</p>
                                 </div>
                                 <div class="col-span-6 sm:col-span-2">
                                     <label class="block text-sm font-medium text-content-secondary">Ngày thanh toán cố định (tháng)</label>
@@ -312,21 +324,14 @@ syncMonthsPaid(true);
                                 </div>
                             </div>
 
-                            <div v-if="form.type === 'bank' && form.principal_amount > 0 && form.interest_rate > 0 && form.term_months > 0 && form.interest_calculation_method !== 'custom'" class="mt-6 bg-app p-4 rounded-md max-h-96 overflow-y-auto">
-                                <h4 class="font-medium text-content mb-2">Dự tính trả nợ (toàn bộ kỳ)</h4>
-                                <ul class="-my-4 divide-y divide-default">
-                                    <li v-for="(item, index) in previewItems" :key="index" class="py-3 flex items-center justify-between">
-                                        <div>
-                                            <p class="text-sm font-medium text-content">Tháng {{ index + 1 }}</p>
-                                            <p class="text-sm text-content-muted">Gốc: {{ formatMoney(item.principal, false) }} + Lãi: {{ formatMoney(item.interest, false) }}</p>
-                                        </div>
-                                        <span class="px-2.5 py-0.5 border border-strong rounded-full text-sm font-medium">{{ formatMoney(item.total) }}</span>
-                                    </li>
-                                </ul>
-                            </div>
+                            <p v-if="needsSchedulePreview" class="text-sm text-content-muted border border-dashed border-default rounded-lg p-3">
+                                Bước tiếp theo: xem trước lịch trả góp (có thể chỉnh lãi / phí từng kỳ trước khi lưu).
+                            </p>
                         </div>
                         <div class="px-4 py-3 bg-app text-right sm:px-6">
-                            <button type="submit" class="inline-flex py-2 px-4 rounded-md text-white bg-primary-600 hover:bg-primary-700 text-sm font-medium">Lưu Khoản Nợ</button>
+                            <button type="submit" class="inline-flex py-2 px-4 rounded-md text-white bg-primary-600 hover:bg-primary-700 text-sm font-medium">
+                                {{ needsSchedulePreview ? 'Xem lịch trả góp' : 'Lưu Khoản Nợ' }}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -355,6 +360,7 @@ syncMonthsPaid(true);
                                 <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-content-muted">Thời hạn</dt><dd class="font-medium text-right">{{ form.term_months }} tháng</dd></div>
                                 <div v-if="form.interest_calculation_method !== 'custom'" class="flex justify-between gap-4 px-3 py-2"><dt class="text-content-muted">Đã đóng</dt><dd class="font-medium text-right">{{ form.months_paid }} tháng</dd></div>
                                 <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-content-muted">Trả hàng tháng</dt><dd class="font-medium text-right">{{ formatMoney(form.monthly_payment) }}</dd></div>
+                                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-content-muted">Phí thu hộ</dt><dd class="font-medium text-right">{{ formatMoney(form.collection_fee) }}</dd></div>
                                 <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-content-muted">Ngày TT cố định</dt><dd class="font-medium text-right">Ngày {{ form.payment_day }}</dd></div>
                             </template>
                         </dl>

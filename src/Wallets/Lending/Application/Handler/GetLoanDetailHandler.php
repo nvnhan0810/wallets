@@ -5,6 +5,7 @@ namespace Wallets\Lending\Application\Handler;
 use App\Models\Loan;
 use Wallets\Lending\Application\AmortizationService;
 use Wallets\Lending\Application\LoanPaymentScheduleService;
+use Wallets\Lending\Application\LoanScheduleGenerator;
 use Wallets\Lending\Application\Query\GetLoanDetail;
 use Wallets\Shared\Application\Query;
 use Wallets\Shared\Application\QueryHandler;
@@ -14,6 +15,7 @@ final class GetLoanDetailHandler implements QueryHandler
     public function __construct(
         private readonly LoanPaymentScheduleService $paymentSchedule,
         private readonly AmortizationService $amortization,
+        private readonly LoanScheduleGenerator $scheduleGenerator,
     ) {}
 
     public function handle(Query $query): mixed
@@ -30,6 +32,9 @@ final class GetLoanDetailHandler implements QueryHandler
         $timeline = collect([]);
 
         if ($loan->type === 'bank') {
+            $this->scheduleGenerator->backfillPastPeriods($loan);
+            $loan->refresh()->load(['payments.transaction', 'wallet', 'customSchedules']);
+
             $schedule = $this->amortization->calculate(
                 $loan->id,
                 $loan->principal_amount,
@@ -39,6 +44,7 @@ final class GetLoanDetailHandler implements QueryHandler
                 $loan->monthly_payment,
                 $loan->interest_calculation_method ?? 'monthly',
                 $loan->payment_day,
+                $loan->collection_fee ?? 0,
             );
 
             if ($schedule->isNotEmpty()) {
@@ -57,6 +63,7 @@ final class GetLoanDetailHandler implements QueryHandler
         }
 
         $paymentDay = $loan->isBankLoan() ? $this->paymentSchedule->paymentDay($loan) : null;
+        $timeline = $this->paymentSchedule->serializeTimeline($timeline);
 
         return compact('loan', 'schedule', 'monthsPassed', 'timeline', 'paymentDay');
     }

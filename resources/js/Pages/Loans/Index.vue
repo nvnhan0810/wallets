@@ -84,7 +84,8 @@ function loanTypeLabel(loan) {
     if (loan.type === 'bank') {
         const method = loan.interest_calculation_method ?? 'monthly';
         let label = 'Vay Ngân hàng';
-        if (method === 'daily') label += ' (Tính theo ngày)';
+        if (method === 'homecredit') label += ' (Home Credit EMI)';
+        else if (method === 'daily') label += ' (Tính theo ngày)';
         else if (method === 'custom') label += ' (Custom)';
         return label;
     }

@@ -11,8 +11,10 @@ use Inertia\Inertia;
 use Wallets\Lending\Application\Command\CreateLoan;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\Command\SettleLoan;
+use Wallets\Lending\Application\LoanSchedulePreviewService;
 use Wallets\Lending\Application\Query\GetLoanDetail;
 use Wallets\Lending\Application\Query\ListActiveLoans;
+use Wallets\Lending\Domain\HomeCreditEmiCalculator;
 use Wallets\Shared\Application\CommandBus;
 use Wallets\Shared\Application\QueryBus;
 use Wallets\WalletAccounting\Application\Query\ListWallets;
@@ -24,6 +26,7 @@ class LoanController extends Controller
     public function __construct(
         private readonly CommandBus $commands,
         private readonly QueryBus $queries,
+        private readonly LoanSchedulePreviewService $schedulePreview,
     ) {}
 
     public function index()
@@ -75,6 +78,7 @@ class LoanController extends Controller
             'interest_calculation_method' => $loanModel->interest_calculation_method,
             'term_months' => $loanModel->term_months,
             'monthly_payment' => (float) ($loanModel->monthly_payment ?? 0),
+            'collection_fee' => (float) ($loanModel->collection_fee ?? 0),
             'remaining_principal' => isset($loanModel->remaining_principal) ? (float) $loanModel->remaining_principal : null,
             'started_at' => optional($loanModel->started_at)?->format('d/m/Y'),
             'wallet' => $loanModel->wallet ? ['id' => $loanModel->wallet->id, 'name' => $loanModel->wallet->name] : null,
@@ -98,28 +102,53 @@ class LoanController extends Controller
 
         return Inertia::render('Loans/Create', [
             'wallets' => InertiaData::wallets($wallets),
+            'draft' => session('loan_create_draft'),
+        ]);
+    }
+
+    public function preview(Request $request)
+    {
+        $validated = $this->validateLoanPayload($request);
+        $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
+
+        $method = $validated['interest_calculation_method'] ?? 'monthly';
+        if ($validated['type'] !== 'bank' || $method === 'custom') {
+            return redirect()->route('loans.create')->withInput();
+        }
+
+        $schedule = $this->schedulePreview->build($validated);
+
+        $draft = $validated;
+        $draft['started_at'] = Carbon::parse($validated['started_at'])->format('d/m/Y');
+        $draft['record_cash_flow'] = $request->boolean('record_cash_flow');
+        session(['loan_create_draft' => $draft]);
+
+        return Inertia::render('Loans/Preview', [
+            'loan' => [
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'principal_amount' => (float) $validated['principal_amount'],
+                'started_at' => $validated['started_at'],
+                'started_at_label' => Carbon::parse($validated['started_at'])->format('d/m/Y'),
+                'wallet_id' => $validated['wallet_id'] ?? null,
+                'record_cash_flow' => $request->boolean('record_cash_flow'),
+                'received_amount' => isset($validated['received_amount']) ? (float) $validated['received_amount'] : null,
+                'interest_rate' => (float) ($validated['interest_rate'] ?? 0),
+                'interest_calculation_method' => $method,
+                'term_months' => (int) ($validated['term_months'] ?? 0),
+                'months_paid' => (int) ($validated['months_paid'] ?? 0),
+                'monthly_payment' => (float) ($validated['monthly_payment'] ?? 0),
+                'collection_fee' => (float) ($validated['collection_fee'] ?? 0),
+                'payment_day' => (int) ($validated['payment_day'] ?? 0),
+            ],
+            'schedule' => $schedule,
+            'editable' => in_array($method, ['monthly', 'daily', HomeCreditEmiCalculator::METHOD], true),
         ]);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'type' => 'required|in:bank,borrow,lend',
-            'name' => 'required|string',
-            'principal_amount' => 'required|numeric',
-            'started_at' => 'required|string',
-            'wallet_id' => 'nullable|exists:wallets,id',
-            'record_cash_flow' => 'sometimes|boolean',
-            'received_amount' => 'nullable|numeric|min:0',
-            'interest_rate' => 'nullable|numeric',
-            'interest_calculation_method' => 'nullable|in:monthly,daily,custom',
-            'term_months' => 'nullable|integer',
-            'months_paid' => 'nullable|integer',
-            'monthly_payment' => 'nullable|numeric',
-            'payment_day' => 'nullable|integer|min:1|max:31',
-            'custom_schedule' => 'sometimes|array',
-        ]);
-
+        $validated = $this->validateLoanPayload($request);
         $validated['started_at'] = $this->convertDateFormat($validated['started_at']);
 
         // Ví và khoản vay độc lập: chỉ ghi tiền vào ví khi ngày bắt đầu là hôm nay.
@@ -132,6 +161,7 @@ class LoanController extends Controller
 
         $validated['months_paid'] = $validated['months_paid'] ?? 0;
         $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
+        $validated['collection_fee'] = (float) ($validated['collection_fee'] ?? 0);
 
         if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
             $request->validate([
@@ -141,10 +171,25 @@ class LoanController extends Controller
             ]);
         }
 
+        $interestMethods = ['monthly', 'daily', HomeCreditEmiCalculator::METHOD];
+        if (in_array($validated['interest_calculation_method'], $interestMethods, true)
+            && $request->filled('custom_schedule')) {
+            $request->validate([
+                'custom_schedule' => 'required|array|min:1',
+                'custom_schedule.*.interest' => 'required|numeric|min:0',
+                'custom_schedule.*.principal' => 'required|numeric|min:0',
+                'custom_schedule.*.fee' => 'nullable|numeric|min:0',
+                'custom_schedule.*.payment' => 'required|numeric|min:0',
+            ]);
+        }
+
         $customRows = $request->input('custom_schedule', []);
         foreach ($customRows as $idx => $row) {
             if (isset($row['paid_at'])) {
                 $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['paid_at']);
+            }
+            if (isset($row['due_date']) && ! isset($row['paid_at'])) {
+                $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['due_date']);
             }
         }
 
@@ -162,11 +207,37 @@ class LoanController extends Controller
             return back()->withErrors($result['errors'])->withInput();
         }
 
+        session()->forget('loan_create_draft');
+
         $message = $recordCashFlow
             ? 'Đã tạo khoản vay và ghi nhận tiền vào ví.'
             : 'Đã tạo khoản vay. Kỳ trả sẽ nhắc khi tới hạn.';
 
         return redirect()->route('loans.index')->with('success', $message);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateLoanPayload(Request $request): array
+    {
+        return $request->validate([
+            'type' => 'required|in:bank,borrow,lend',
+            'name' => 'required|string',
+            'principal_amount' => 'required|numeric',
+            'started_at' => 'required|string',
+            'wallet_id' => 'nullable|exists:wallets,id',
+            'record_cash_flow' => 'sometimes|boolean',
+            'received_amount' => 'nullable|numeric|min:0',
+            'interest_rate' => 'nullable|numeric',
+            'interest_calculation_method' => 'nullable|in:monthly,daily,custom,homecredit',
+            'term_months' => 'nullable|integer',
+            'months_paid' => 'nullable|integer',
+            'monthly_payment' => 'nullable|numeric',
+            'collection_fee' => 'nullable|numeric|min:0',
+            'payment_day' => 'nullable|integer|min:1|max:31',
+            'custom_schedule' => 'sometimes|array',
+        ]);
     }
 
     public function storePayment(Request $request)

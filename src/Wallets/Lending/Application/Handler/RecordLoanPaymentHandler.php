@@ -47,6 +47,7 @@ final class RecordLoanPaymentHandler implements CommandHandler
                     $loan->monthly_payment,
                     $loan->interest_calculation_method ?? 'monthly',
                     $loan->payment_day,
+                    $loan->collection_fee ?? 0,
                 );
                 $resolved = $this->paymentSchedule->resolvePeriodForPayment($loan, $paidAt, $schedule);
                 $periodMeta = [

@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
     Route::get('/loans/create', [LoanController::class, 'create'])->name('loans.create');
+    Route::post('/loans/preview', [LoanController::class, 'preview'])->name('loans.preview');
     Route::post('/loans', [LoanController::class, 'store'])->name('loans.store');
     Route::get('/loans/{loan}', [LoanController::class, 'show'])->name('loans.show');
     Route::post('/payments', [LoanController::class, 'storePayment'])->name('payments.store');

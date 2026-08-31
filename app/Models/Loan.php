@@ -21,6 +21,7 @@ class Loan extends Model
         'term_months',
         'months_paid',
         'monthly_payment',
+        'collection_fee',
         'payment_day',
         'started_at',
         'is_settled',

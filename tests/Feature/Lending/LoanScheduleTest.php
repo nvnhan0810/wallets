@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Wallets\Lending\Application\Command\CreateLoan;
@@ -112,5 +113,50 @@ class LoanScheduleTest extends TestCase
         $this->assertSame('paid', $firstPeriod->status);
         $this->assertNotNull($firstPeriod->payment_id);
         $this->assertEquals(3900000, (float) $wallet->fresh()->balance);
+    }
+
+    #[Test]
+    public function advancing_calendar_marks_newly_past_due_periods_paid_on_detail(): void
+    {
+        Carbon::setTestNow('2026-07-10');
+        $user = $this->makeUser();
+        $wallet = $this->makeWallet($user);
+
+        $loan = $this->createBankLoan($user, '2026-07-15', $wallet->id)['loan'];
+
+        $this->assertSame(0, LoanCustomSchedule::where('loan_id', $loan->id)->where('status', 'paid')->count());
+
+        // Ngày đến hạn kỳ 1 = 15/08; sau ngày đó mới tự đánh dấu đã trả.
+        Carbon::setTestNow('2026-08-16');
+
+        $this->actingAs($user)
+            ->get(route('loans.show', $loan))
+            ->assertOk();
+
+        $paid = LoanCustomSchedule::where('loan_id', $loan->id)->where('status', 'paid')->count();
+        $this->assertSame(1, $paid);
+        $this->assertSame(1, (int) $loan->fresh()->months_paid);
+    }
+
+    #[Test]
+    public function loan_detail_timeline_exposes_dates_as_strings_not_objects(): void
+    {
+        Carbon::setTestNow('2026-07-15');
+        $user = $this->makeUser();
+        $wallet = $this->makeWallet($user);
+        $loan = $this->createBankLoan($user, '2026-07-15', $wallet->id)['loan'];
+
+        $this->actingAs($user)
+            ->get(route('loans.show', $loan))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Loans/Show', false)
+                ->has('timeline.0', fn (AssertableInertia $row) => $row
+                    ->where('type', 'period')
+                    ->where('period_due_date', fn ($v) => is_string($v) && $v !== '')
+                    ->where('period.date', fn ($v) => is_string($v) && $v !== '')
+                    ->etc()
+                )
+            );
     }
 }

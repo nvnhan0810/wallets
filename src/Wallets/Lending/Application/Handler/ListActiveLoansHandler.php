@@ -5,6 +5,7 @@ namespace Wallets\Lending\Application\Handler;
 use App\Models\Loan;
 use Wallets\Lending\Application\AmortizationService;
 use Wallets\Lending\Application\LoanPaymentScheduleService;
+use Wallets\Lending\Application\LoanScheduleGenerator;
 use Wallets\Lending\Application\Query\ListActiveLoans;
 use Wallets\Shared\Application\Query;
 use Wallets\Shared\Application\QueryHandler;
@@ -14,6 +15,7 @@ final class ListActiveLoansHandler implements QueryHandler
     public function __construct(
         private readonly LoanPaymentScheduleService $paymentSchedule,
         private readonly AmortizationService $amortization,
+        private readonly LoanScheduleGenerator $scheduleGenerator,
     ) {}
 
     public function handle(Query $query): mixed
@@ -29,6 +31,9 @@ final class ListActiveLoansHandler implements QueryHandler
             $totalPaid = $loan->payments->sum('amount');
 
             if ($loan->type === 'bank') {
+                $this->scheduleGenerator->backfillPastPeriods($loan);
+                $loan->refresh()->load(['payments', 'wallet', 'customSchedules']);
+
                 $schedule = $this->amortization->calculate(
                     $loan->id,
                     $loan->principal_amount,
@@ -38,6 +43,7 @@ final class ListActiveLoansHandler implements QueryHandler
                     $loan->monthly_payment,
                     $loan->interest_calculation_method ?? 'monthly',
                     $loan->payment_day,
+                    $loan->collection_fee ?? 0,
                 );
 
                 if ($schedule->isEmpty()) {
