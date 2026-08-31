@@ -1,20 +1,21 @@
 ---
-description: Deploy — Vite build + K3s pod restart for wallets.nvnhan0810.com
+description: Deploy — Vite build + PHP-FPM reload for wallets-dev (local nginx)
 alwaysApply: true
 ---
 
 # Build & deployment (MyWallet)
 
-Workspace root: `/home/nvnhan0810/www/wallets.nvnhan0810.com`  
-Live host: `https://wallets.nvnhan0810.com`  
-K8s: namespace `wallets-nvnhan0810-com`, label `app.kubernetes.io/name=wallets-nvnhan0810-com`
+Workspace / nginx root: `/home/nvnhan0810/www/wallets.nvnhan0810.com`  
+Dev host: `https://wallets-dev.nvnhan0810.com` (nginx :9080 + Cloudflare)  
+PHP: `php8.5-fpm` socket `/run/php/php8.5-fpm.sock`
 
-Image is built from Dockerfile (assets baked in). For **local** Blade/JS verification against a volume-mounted or rebuilt image:
+**Dev is local nginx + PHP-FPM, not K3s.** Edits under this tree are served live after build/reload.
 
-1. **Build FE:** `npm run build` in the workspace root.
-2. **OPcache:** delete pod so PHP reloads views when the runtime mounts this tree:
-   - `kubectl delete pod -l app.kubernetes.io/name=wallets-nvnhan0810-com -n wallets-nvnhan0810-com`
-   - `sleep 15 && kubectl get pods -n wallets-nvnhan0810-com`
-3. **Verify:** `curl -s https://wallets.nvnhan0810.com/login | grep ...`
+When changing CSS/JS/TS or Blade:
 
-Production updates normally go through the GHCR image (`ghcr.io/nvnhan0810/wallets:...`) via deploy webhook — push/rebuild when the running pod does not mount this directory.
+1. **Build FE:** `npm run build` in the workspace root
+2. **PHP-FPM / OPcache:** if Blade/PHP views look stale, reload FPM:
+   - `sudo systemctl reload php8.5-fpm`
+3. **Verify:** `curl -s https://wallets-dev.nvnhan0810.com/login | grep ...`
+
+PHPUnit uses PostgreSQL database `wallets_testing` (see `phpunit.xml`); do not run `RefreshDatabase` against `nvnhan0810_wallets_dev`.
