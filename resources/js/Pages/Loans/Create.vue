@@ -163,6 +163,16 @@ watch(() => form.interest_calculation_method, (newVal) => {
     }
 });
 
+watch(() => form.type, (type) => {
+    if (type !== 'bank') {
+        form.interest_calculation_method = 'monthly';
+        form.custom_schedule = [];
+        customSchedule.value = [];
+    } else if (!form.interest_calculation_method) {
+        form.interest_calculation_method = 'homecredit';
+    }
+});
+
 function onSubmit(e: Event) {
     e.preventDefault();
     if (needsSchedulePreview.value) {
@@ -173,7 +183,7 @@ function onSubmit(e: Event) {
 }
 
 function confirmSubmit() {
-    if (form.interest_calculation_method === 'custom') {
+    if (form.type === 'bank' && form.interest_calculation_method === 'custom') {
         form.custom_schedule = customSchedule.value.map((row) => ({
             month_index: row.month_index,
             paid_at: row.paid_at,
@@ -182,6 +192,8 @@ function confirmSubmit() {
             fee: computedFee(row),
             payment: form.monthly_payment,
         }));
+    } else {
+        form.custom_schedule = [];
     }
     confirmOpen.value = false;
     form.post(route('loans.store'));

@@ -159,11 +159,19 @@ class LoanController extends Controller
             $request->validate(['wallet_id' => 'required|exists:wallets,id']);
         }
 
-        $validated['months_paid'] = $validated['months_paid'] ?? 0;
-        $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
-        $validated['collection_fee'] = (float) ($validated['collection_fee'] ?? 0);
+        $isBank = ($validated['type'] ?? '') === 'bank';
 
-        if (($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
+        if (! $isBank) {
+            // Form UI có thể còn giữ field bank (method=custom, …) khi đổi sang mượn/cho mượn.
+            $validated = $this->stripBankOnlyFields($validated);
+        } else {
+            $validated['months_paid'] = $validated['months_paid'] ?? 0;
+            $validated['interest_calculation_method'] = $validated['interest_calculation_method'] ?? 'monthly';
+            $validated['collection_fee'] = (float) ($validated['collection_fee'] ?? 0);
+        }
+
+        $customRows = [];
+        if ($isBank && ($validated['interest_calculation_method'] ?? 'monthly') === 'custom') {
             $request->validate([
                 'monthly_payment' => 'required|numeric|min:1',
                 'term_months' => 'required|integer|min:1',
@@ -172,7 +180,8 @@ class LoanController extends Controller
         }
 
         $interestMethods = ['monthly', 'daily', HomeCreditEmiCalculator::METHOD];
-        if (in_array($validated['interest_calculation_method'], $interestMethods, true)
+        if ($isBank
+            && in_array($validated['interest_calculation_method'] ?? '', $interestMethods, true)
             && $request->filled('custom_schedule')) {
             $request->validate([
                 'custom_schedule' => 'required|array|min:1',
@@ -183,13 +192,15 @@ class LoanController extends Controller
             ]);
         }
 
-        $customRows = $request->input('custom_schedule', []);
-        foreach ($customRows as $idx => $row) {
-            if (isset($row['paid_at'])) {
-                $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['paid_at']);
-            }
-            if (isset($row['due_date']) && ! isset($row['paid_at'])) {
-                $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['due_date']);
+        if ($isBank) {
+            $customRows = $request->input('custom_schedule', []);
+            foreach ($customRows as $idx => $row) {
+                if (isset($row['paid_at'])) {
+                    $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['paid_at']);
+                }
+                if (isset($row['due_date']) && ! isset($row['paid_at'])) {
+                    $customRows[$idx]['paid_at'] = $this->convertDateFormat($row['due_date']);
+                }
             }
         }
 
@@ -214,6 +225,26 @@ class LoanController extends Controller
             : 'Đã tạo khoản vay. Kỳ trả sẽ nhắc khi tới hạn.';
 
         return redirect()->route('loans.index')->with('success', $message);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function stripBankOnlyFields(array $validated): array
+    {
+        unset(
+            $validated['interest_rate'],
+            $validated['interest_calculation_method'],
+            $validated['term_months'],
+            $validated['months_paid'],
+            $validated['monthly_payment'],
+            $validated['collection_fee'],
+            $validated['payment_day'],
+            $validated['custom_schedule'],
+        );
+
+        return $validated;
     }
 
     /**
