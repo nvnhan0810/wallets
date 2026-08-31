@@ -81,7 +81,7 @@ final class GetDashboardOverviewHandler implements QueryHandler
 
     private function buildUpcomingReminders($upcomingLoanPayments, $upcomingRecurring): Collection
     {
-        $reminders = $upcomingLoanPayments->map(fn (Loan $loan) => (object) [
+        $reminders = $upcomingLoanPayments->map(fn (Loan $loan) => [
             'kind' => 'loan',
             'name' => $loan->name,
             'amount' => (float) ($loan->next_period_amount ?? $loan->monthly_payment ?? 0),
@@ -104,7 +104,7 @@ final class GetDashboardOverviewHandler implements QueryHandler
             $overdue = ($item->days_until ?? 0) < 0;
             $typeLabel = $item->type_label.($overdue ? ' · Quá hạn '.abs($item->days_until).' ngày' : '');
 
-            $reminders->push((object) [
+            $reminders->push([
                 'kind' => 'recurring',
                 'name' => $item->name,
                 'amount' => (float) $item->amount,

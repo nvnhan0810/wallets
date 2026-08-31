@@ -31,20 +31,10 @@ class DashboardController extends Controller
             ->values()
             ->all();
 
-        $data['upcomingReminders'] = collect($data['upcomingReminders'] ?? [])->map(function ($r) {
-            return [
-                'kind' => $r['kind'] ?? null,
-                'name' => $r['name'] ?? '',
-                'amount' => (float) ($r['amount'] ?? 0),
-                'due_date' => isset($r['due_date']) ? (string) $r['due_date'] : null,
-                'days_until' => $r['days_until'] ?? null,
-                'type_label' => $r['type_label'] ?? '',
-                'type_badge_class' => $r['type_badge_class'] ?? '',
-                'insufficient_funds' => (bool) ($r['insufficient_funds'] ?? false),
-                'pay_url' => $r['pay_url'] ?? null,
-                'wallet_name' => isset($r['wallet']) ? ($r['wallet']->name ?? null) : null,
-            ];
-        })->values()->all();
+        $data['upcomingReminders'] = collect($data['upcomingReminders'] ?? [])
+            ->map(fn (array $r) => InertiaData::reminder($r))
+            ->values()
+            ->all();
 
         return Inertia::render('Dashboard/Index', $data);
     }

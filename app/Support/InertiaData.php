@@ -70,6 +70,28 @@ final class InertiaData
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $reminder
+     * @return array<string, mixed>
+     */
+    public static function reminder(array $reminder): array
+    {
+        $wallet = $reminder['wallet'] ?? null;
+
+        return [
+            'kind' => $reminder['kind'] ?? null,
+            'name' => $reminder['name'] ?? '',
+            'amount' => (float) ($reminder['amount'] ?? 0),
+            'due_date' => isset($reminder['due_date']) ? (string) $reminder['due_date'] : null,
+            'days_until' => $reminder['days_until'] ?? null,
+            'type_label' => $reminder['type_label'] ?? '',
+            'type_badge_class' => $reminder['type_badge_class'] ?? '',
+            'insufficient_funds' => (bool) ($reminder['insufficient_funds'] ?? false),
+            'pay_url' => $reminder['pay_url'] ?? null,
+            'wallet_name' => is_object($wallet) ? ($wallet->name ?? null) : null,
+        ];
+    }
+
     public static function paginator($paginator): array
     {
         return [
