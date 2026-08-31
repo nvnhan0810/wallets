@@ -119,9 +119,10 @@ onMounted(() => {
             <h2 class="text-2xl font-bold leading-7 text-content sm:text-3xl sm:truncate">Kế hoạch tài chính</h2>
         </div>
 
-        <div class="flex border-b border-subtle mb-6">
+        <div class="flex flex-wrap border-b border-subtle mb-6">
             <Link :href="route('loans.index')" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Khoản vay & Nợ</Link>
             <Link :href="route('recurring-items.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Thu chi cố định</Link>
+            <Link :href="route('fixed-expenses.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Tổng hợp chi cố định</Link>
         </div>
 
         <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

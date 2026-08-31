@@ -42,7 +42,9 @@ use Wallets\RecurringPlanning\Application\Handler\ListRecurringItemsHandler;
 use Wallets\RecurringPlanning\Application\Handler\UpdateRecurringItemHandler;
 use Wallets\RecurringPlanning\Application\Query\ListRecurringItems;
 use Wallets\Reporting\Application\Handler\GetDashboardOverviewHandler;
+use Wallets\Reporting\Application\Handler\GetFixedExpenseSummaryHandler;
 use Wallets\Reporting\Application\Query\GetDashboardOverview;
+use Wallets\Reporting\Application\Query\GetFixedExpenseSummary;
 use Wallets\Shared\Application\Clock;
 use Wallets\Shared\Application\CommandBus;
 use Wallets\Shared\Application\Config;
@@ -127,6 +129,7 @@ class WalletsServiceProvider extends ServiceProvider
             ListHolidays::class => ListHolidaysHandler::class,
             GetSettings::class => GetSettingsHandler::class,
             GetDashboardOverview::class => GetDashboardOverviewHandler::class,
+            GetFixedExpenseSummary::class => GetFixedExpenseSummaryHandler::class,
         ];
     }
 }

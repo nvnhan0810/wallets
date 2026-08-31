@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FixedExpenseSummaryController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\RecurringItemController;
@@ -45,6 +46,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/recurring-items', [RecurringItemController::class, 'store'])->name('recurring-items.store');
     Route::put('/recurring-items/{recurringItem}', [RecurringItemController::class, 'update'])->name('recurring-items.update');
     Route::delete('/recurring-items/{recurringItem}', [RecurringItemController::class, 'destroy'])->name('recurring-items.destroy');
+
+    Route::get('/fixed-expenses', [FixedExpenseSummaryController::class, 'index'])->name('fixed-expenses.index');
 
     Route::get('/transaction-templates', [TransactionTemplateController::class, 'index'])->name('transaction-templates.index');
     Route::post('/transaction-templates', [TransactionTemplateController::class, 'store'])->name('transaction-templates.store');

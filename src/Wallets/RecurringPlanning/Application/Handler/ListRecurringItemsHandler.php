@@ -15,7 +15,6 @@ final class ListRecurringItemsHandler implements QueryHandler
 
         return RecurringItem::query()
             ->forUser($query->userId)
-            ->with('wallet')
             ->orderByDesc('is_active')
             ->orderBy('day_of_month')
             ->orderBy('name')
@@ -23,7 +22,7 @@ final class ListRecurringItemsHandler implements QueryHandler
             ->map(function (RecurringItem $item) {
                 $item->next_due = $item->nextDueDate();
                 $item->days_until = $item->daysUntilDue();
-                $item->insufficient_funds = $item->isInsufficientFunds();
+                $item->insufficient_funds = false;
 
                 return $item;
             });

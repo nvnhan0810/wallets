@@ -67,7 +67,7 @@ function logout(): void {
                             <Link :href="route('dashboard')" class="px-3 py-2 rounded-md" :class="isActive('/') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Tổng quan</Link>
                             <Link :href="route('transactions.index')" class="px-3 py-2 rounded-md" :class="isActive('/transactions') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Giao dịch</Link>
                             <Link :href="route('wallets.index')" class="px-3 py-2 rounded-md" :class="isActive('/wallets') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Ví</Link>
-                            <Link :href="route('loans.index')" class="px-3 py-2 rounded-md" :class="isActive('/loans') || isActive('/recurring-items') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Kế hoạch</Link>
+                            <Link :href="route('loans.index')" class="px-3 py-2 rounded-md" :class="isActive('/loans') || isActive('/recurring-items') || isActive('/fixed-expenses') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Kế hoạch</Link>
                             <Link :href="route('settings.index')" class="px-3 py-2 rounded-md" :class="isActive('/settings') || isActive('/holidays') || isActive('/transaction-templates') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'text-content-secondary hover:text-primary-600'">Cá nhân</Link>
                         </div>
                     </div>
@@ -111,7 +111,7 @@ function logout(): void {
                         <NavIcon name="plus" />
                     </Link>
                 </div>
-                <Link :href="route('loans.index')" class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]" :class="isActive('/loans') || isActive('/recurring-items') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted'">
+                <Link :href="route('loans.index')" class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium min-h-[44px]" :class="isActive('/loans') || isActive('/recurring-items') || isActive('/fixed-expenses') ? 'text-primary-700 dark:text-primary-400' : 'text-content-muted'">
                     <NavIcon name="planning" />
                     <span>Kế hoạch</span>
                 </Link>

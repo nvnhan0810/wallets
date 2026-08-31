@@ -83,10 +83,6 @@ class RecurringItem extends Model
 
     public function isInsufficientFunds(): bool
     {
-        if ($this->type !== 'expense' || ! $this->wallet) {
-            return false;
-        }
-
-        return $this->wallet->spendableBalance() < (float) $this->amount;
+        return false;
     }
 }
