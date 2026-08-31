@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { formatMoney, formatDateVi } from '@/utils/format';
+import { formatMoney, formatDateVi } from '@/domain';
 
 const props = defineProps({
     loan: { type: Object, required: true },

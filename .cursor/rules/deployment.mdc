@@ -1,0 +1,20 @@
+---
+description: Deploy — Vite build + K3s pod restart for wallets.nvnhan0810.com
+alwaysApply: true
+---
+
+# Build & deployment (MyWallet)
+
+Workspace root: `/home/nvnhan0810/www/wallets.nvnhan0810.com`  
+Live host: `https://wallets.nvnhan0810.com`  
+K8s: namespace `wallets-nvnhan0810-com`, label `app.kubernetes.io/name=wallets-nvnhan0810-com`
+
+Image is built from Dockerfile (assets baked in). For **local** Blade/JS verification against a volume-mounted or rebuilt image:
+
+1. **Build FE:** `npm run build` in the workspace root.
+2. **OPcache:** delete pod so PHP reloads views when the runtime mounts this tree:
+   - `kubectl delete pod -l app.kubernetes.io/name=wallets-nvnhan0810-com -n wallets-nvnhan0810-com`
+   - `sleep 15 && kubectl get pods -n wallets-nvnhan0810-com`
+3. **Verify:** `curl -s https://wallets.nvnhan0810.com/login | grep ...`
+
+Production updates normally go through the GHCR image (`ghcr.io/nvnhan0810/wallets:...`) via deploy webhook — push/rebuild when the running pod does not mount this directory.

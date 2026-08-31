@@ -1,21 +1,25 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import FlashMessages from '@/Components/FlashMessages.vue';
 import NavIcon from '@/Components/NavIcon.vue';
-import { greetingLabel, toggleTheme } from '@/utils/format';
+import { greetingLabel, toggleTheme } from '@/domain';
+import type { SharedPageProps } from '@/types/inertia';
 
-defineProps({
-    title: { type: String, default: undefined },
-    wide: { type: Boolean, default: true },
-});
+withDefaults(
+    defineProps<{
+        title?: string;
+        wide?: boolean;
+    }>(),
+    { wide: true },
+);
 
-const page = usePage();
+const page = usePage<SharedPageProps>();
 const user = computed(() => page.props.auth?.user);
 const initial = computed(() => (user.value?.name || 'U').charAt(0).toUpperCase());
 
-function isActive(...patterns) {
-    const url = page.url.split('?')[0];
+function isActive(...patterns: string[]): boolean {
+    const url = page.url.split('?')[0] ?? '';
     return patterns.some((p) => {
         if (p.endsWith('*')) {
             const base = p.slice(0, -1);
@@ -25,7 +29,7 @@ function isActive(...patterns) {
     });
 }
 
-function logout() {
+function logout(): void {
     router.post(route('logout'));
 }
 </script>

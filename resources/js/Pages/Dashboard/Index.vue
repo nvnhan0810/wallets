@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import Chart from 'chart.js/auto';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { formatMoney, formatDateVi } from '@/utils/format';
+import { formatMoney, formatDateVi } from '@/domain';
 
 const CHART_PERIODS = {
     day: { label: 'Ngày', range: '14 ngày gần nhất' },

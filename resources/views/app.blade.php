@@ -18,7 +18,7 @@
         }
     </script>
     @routes
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.ts'])
     @inertiaHead
 </head>
 <body class="bg-app text-content font-sans transition-colors duration-200">

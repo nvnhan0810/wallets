@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
 import DatePicker from '@/Components/DatePicker.vue';
-import { formatMoney, todayVi } from '@/utils/format';
+import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
     wallets: { type: Array, default: () => [] },

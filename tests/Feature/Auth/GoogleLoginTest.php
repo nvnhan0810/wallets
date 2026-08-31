@@ -22,6 +22,19 @@ class GoogleLoginTest extends TestCase
     }
 
     #[Test]
+    public function google_auth_entry_redirects_to_provider(): void
+    {
+        $provider = Mockery::mock(Provider::class);
+        $provider->shouldReceive('redirectUrl')->andReturnSelf();
+        $provider->shouldReceive('redirect')->andReturn(redirect('https://accounts.google.com/o/oauth2/auth'));
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $this->get(route('auth.google'))
+            ->assertRedirect('https://accounts.google.com/o/oauth2/auth');
+    }
+
+    #[Test]
     public function allowlisted_google_user_can_sign_in(): void
     {
         config(['wallets.allowed_emails' => ['allowed@example.com'], 'wallets.allow_all_emails' => false]);

@@ -1,12 +1,13 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import type { SharedPageProps } from '@/types/inertia';
 
-const page = usePage();
+const page = usePage<SharedPageProps>();
 const success = computed(() => page.props.flash?.success);
 const error = computed(() => page.props.flash?.error);
-const importErrors = computed(() => page.props.flash?.import_errors || []);
-const errors = computed(() => page.props.errors || {});
+const importErrors = computed(() => page.props.flash?.import_errors ?? []);
+const errors = computed(() => page.props.errors ?? {});
 const errorList = computed(() => Object.values(errors.value).flat());
 </script>
 

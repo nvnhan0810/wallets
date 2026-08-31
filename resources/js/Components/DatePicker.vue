@@ -1,20 +1,28 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import flatpickr from 'flatpickr';
+import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
 import 'flatpickr/dist/flatpickr.min.css';
 
-const model = defineModel({ type: String, default: '' });
+const model = defineModel<string>({ default: '' });
 
-const props = defineProps({
-    name: { type: String, default: undefined },
-    required: { type: Boolean, default: false },
-    id: { type: String, default: undefined },
-});
+withDefaults(
+    defineProps<{
+        name?: string;
+        required?: boolean;
+        id?: string;
+    }>(),
+    { required: false },
+);
 
-const input = ref(null);
-let fp = null;
+const input = ref<HTMLInputElement | null>(null);
+let fp: FlatpickrInstance | null = null;
 
-onMounted(() => {
+onMounted((): void => {
+    if (!input.value) {
+        return;
+    }
+
     fp = flatpickr(input.value, {
         dateFormat: 'd/m/Y',
         allowInput: true,
@@ -33,7 +41,7 @@ onMounted(() => {
                 ],
             },
         },
-        onChange(selected, dateStr) {
+        onChange(_selected, dateStr): void {
             model.value = dateStr;
         },
     });
@@ -45,9 +53,14 @@ watch(model, (v) => {
     }
 });
 
-onBeforeUnmount(() => {
+onBeforeUnmount((): void => {
     fp?.destroy();
 });
+
+function onNativeInput(e: Event): void {
+    const target = e.target as HTMLInputElement;
+    model.value = target.value;
+}
 </script>
 
 <template>
@@ -59,7 +72,7 @@ onBeforeUnmount(() => {
         :name="name"
         :required="required"
         :value="model"
-        @input="model = $event.target.value"
+        @input="onNativeInput"
     />
 </template>
 
