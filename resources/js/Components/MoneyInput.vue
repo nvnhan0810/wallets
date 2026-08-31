@@ -1,32 +1,42 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
-import { parseMoney } from '@/utils/format';
+import { parseMoney } from '@/domain/money/money';
 
-const model = defineModel({ type: [Number, String], default: '' });
+const model = defineModel<number | string>({ default: '' });
 
-defineProps({
-    name: { type: String, default: undefined },
-    required: { type: Boolean, default: false },
-    readonly: { type: Boolean, default: false },
-    placeholder: { type: String, default: '0' },
-    id: { type: String, default: undefined },
-});
+withDefaults(
+    defineProps<{
+        name?: string;
+        required?: boolean;
+        readonly?: boolean;
+        placeholder?: string;
+        id?: string;
+    }>(),
+    {
+        required: false,
+        readonly: false,
+        placeholder: '0',
+    },
+);
 
 const display = computed({
-    get() {
+    get(): string {
         const n = Number(model.value) || 0;
-        if (!n) return '';
+        if (!n) {
+            return '';
+        }
         return new Intl.NumberFormat('vi-VN').format(n);
     },
-    set(v) {
+    set(v: string): void {
         model.value = parseMoney(v);
     },
 });
 
-function onInput(e) {
-    const raw = parseMoney(e.target.value);
+function onInput(e: Event): void {
+    const target = e.target as HTMLInputElement;
+    const raw = parseMoney(target.value);
     model.value = raw;
-    e.target.value = raw ? new Intl.NumberFormat('vi-VN').format(raw) : '';
+    target.value = raw ? new Intl.NumberFormat('vi-VN').format(raw) : '';
 }
 </script>
 

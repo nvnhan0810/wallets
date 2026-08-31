@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
-import { formatMoney, WALLET_TYPES } from '@/utils/format';
+import { formatMoney, WALLET_TYPES } from '@/domain';
 
 const props = defineProps({
     wallet: { type: Object, default: null },

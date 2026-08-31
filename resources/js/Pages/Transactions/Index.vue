@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { formatMoney, formatDateVi, TX_TYPES } from '@/utils/format';
+import { formatMoney, formatDateVi, TX_TYPES } from '@/domain';
 
 const props = defineProps({
     transactions: { type: Object, required: true },

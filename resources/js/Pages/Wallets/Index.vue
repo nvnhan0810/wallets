@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import Sortable from 'sortablejs';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { formatMoney, WALLET_TYPES } from '@/utils/format';
+import { formatMoney, WALLET_TYPES } from '@/domain';
 
 const props = defineProps({
     wallets: { type: Array, default: () => [] },

@@ -1,10 +1,14 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
+import type { SharedPageProps } from '@/types/inertia';
 
-const page = usePage();
+const page = usePage<SharedPageProps>();
 const success = computed(() => page.props.flash?.success);
 const error = computed(() => page.props.flash?.error);
+
+/** Full-page navigation required: Inertia XHR cannot follow Google OAuth redirects (CORS). */
+const googleAuthUrl = route('auth.google');
 </script>
 
 <template>
@@ -22,8 +26,9 @@ const error = computed(() => page.props.flash?.error);
                 {{ success }}
             </div>
 
-            <Link
-                :href="route('auth.google')"
+            <a
+                :href="googleAuthUrl"
+                data-testid="google-login"
                 class="mt-6 flex items-center justify-center gap-2 w-full rounded-lg bg-primary-600 dark:bg-primary-500 hover:bg-primary-700 dark:hover:bg-primary-600 text-white font-medium px-4 py-3 transition-colors"
             >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -33,7 +38,7 @@ const error = computed(() => page.props.flash?.error);
                     <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 Đăng nhập bằng Google
-            </Link>
+            </a>
 
             <p class="mt-4 text-xs text-content-muted text-center">
                 Email phải nằm trong allowlist mới được vào.

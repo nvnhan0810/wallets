@@ -1,0 +1,68 @@
+---
+description: Backend — DDD + CQRS + TDD for Laravel MyWallet (src/Wallets)
+globs: "{app,src,tests,routes,database}/**/*.php"
+alwaysApply: false
+---
+
+# Backend standards (MyWallet)
+
+Apply to PHP under `app/`, `src/Wallets/`, `routes/`, `tests/`.
+
+## TDD first
+
+1. Write a failing unit or feature test.
+2. Implement the minimum code to pass.
+3. Refactor while tests stay green.
+
+New command, query, endpoint, or domain rule ships with a test in the same change.
+
+## Architecture (inward only)
+
+```
+app/Http (Presentation) → src/Wallets/*/Application → Domain
+src/Wallets/*/Infrastructure → Domain ports
+```
+
+Bounded contexts live under `src/Wallets/<Context>/`:
+
+| Layer | Path | Rules |
+|-------|------|-------|
+| Domain | `.../Domain/` | Entities, VOs, pure calc — no Eloquent, HTTP, Laravel facades |
+| Application | `.../Application/{Command,Query,Handler}/` | Orchestration; depend on ports / shared abstractions |
+| Infrastructure | `.../Shared/Infrastructure/` (+ context infra as needed) | Eloquent, clock, config, logger adapters |
+| Presentation | `app/Http/Controllers/` | Thin — dispatch `CommandBus` / `QueryBus` only |
+
+Wire handlers in `app/Providers/WalletsServiceProvider.php` (composition root).
+
+One type per use case: `Command|Query` + matching `*Handler`.
+
+## CQRS
+
+- **Command** = mutate; data-only DTO.
+- **Query** = read; must not mutate domain state.
+- Controllers call `$this->commands->dispatch(...)` / `$this->queries->ask(...)`, not handlers directly.
+
+```text
+✅ CreateLoan + CreateLoanHandler registered on CommandBus
+❌ Controller new-ing AmortizationService and writing Eloquent inline
+```
+
+## No magic values
+
+Named constants / enums / config keys for statuses, wallet types, TX types, allowlists (`config/wallets.php`).
+
+## Testing (PHPUnit)
+
+| Layer | Suite | Location |
+|-------|-------|----------|
+| Domain / pure application | Unit | `tests/Unit/<Context>/` |
+| HTTP, Socialite, DB flows | Feature | `tests/Feature/<Context>/` |
+
+Mirror context names under `tests/` — do not colocate tests next to `src/`.
+
+## Forbidden
+
+- Business rules in controllers
+- Domain importing Eloquent / facades / HTTP
+- Query handlers mutating state
+- Skipping tests for “simple” changes

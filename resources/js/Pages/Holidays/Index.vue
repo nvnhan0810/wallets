@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DatePicker from '@/Components/DatePicker.vue';
-import { todayVi } from '@/utils/format';
+import { todayVi } from '@/domain';
 
 defineProps({
     holidays: { type: Object, required: true },
