@@ -41,7 +41,7 @@ class RecurringOccurrenceStateService
         $today = Carbon::today();
 
         return RecurringOccurrence::query()
-            ->with(['recurringItem.wallet'])
+            ->with(['recurringItem'])
             ->where('user_id', $userId)
             ->whereIn('status', [RecurringOccurrence::STATUS_DUE, RecurringOccurrence::STATUS_OVERDUE])
             ->whereDate('due_date', '<=', $today->toDateString())
@@ -63,7 +63,7 @@ class RecurringOccurrenceStateService
         $until = Carbon::today()->addDays($withinDays)->toDateString();
 
         return RecurringOccurrence::query()
-            ->with(['recurringItem.wallet'])
+            ->with(['recurringItem'])
             ->where('user_id', $userId)
             ->whereIn('status', RecurringOccurrence::openStatuses())
             ->whereDate('due_date', '<=', $until)

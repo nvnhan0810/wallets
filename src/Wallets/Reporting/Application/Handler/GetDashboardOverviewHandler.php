@@ -119,7 +119,6 @@ final class GetDashboardOverviewHandler implements QueryHandler
                 'loan' => null,
                 'pay_url' => route('transactions.create', array_filter([
                     'type' => $item->type,
-                    'wallet_id' => $item->wallet?->id,
                     'amount' => $item->amount,
                     'description' => $item->name,
                     'transacted_at' => $item->due_date?->format('d/m/Y'),

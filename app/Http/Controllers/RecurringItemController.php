@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\RecurringItem;
-use App\Support\InertiaData;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Wallets\RecurringPlanning\Application\Command\CreateRecurringItem;
@@ -12,7 +11,6 @@ use Wallets\RecurringPlanning\Application\Command\UpdateRecurringItem;
 use Wallets\RecurringPlanning\Application\Query\ListRecurringItems;
 use Wallets\Shared\Application\CommandBus;
 use Wallets\Shared\Application\QueryBus;
-use Wallets\WalletAccounting\Application\Query\ListWallets;
 
 class RecurringItemController extends Controller
 {
@@ -24,7 +22,6 @@ class RecurringItemController extends Controller
     public function index()
     {
         $items = $this->queries->ask(new ListRecurringItems(userId: auth()->id()));
-        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
 
         return Inertia::render('RecurringItems/Index', [
             'items' => collect($items)->map(function ($item) {
@@ -34,7 +31,6 @@ class RecurringItemController extends Controller
                     'type' => $item->type,
                     'amount' => (float) $item->amount,
                     'wallet_id' => $item->wallet_id,
-                    'wallet_name' => $item->wallet->name ?? null,
                     'day_of_month' => $item->day_of_month,
                     'effective_from' => optional($item->effective_from)?->toDateString(),
                     'ends_at' => optional($item->ends_at)?->toDateString(),
@@ -42,10 +38,9 @@ class RecurringItemController extends Controller
                     'is_active' => (bool) $item->is_active,
                     'next_due' => isset($item->next_due) ? (string) $item->next_due : null,
                     'days_until' => $item->days_until ?? null,
-                    'insufficient_funds' => (bool) ($item->insufficient_funds ?? false),
+                    'insufficient_funds' => false,
                 ];
             })->values()->all(),
-            'wallets' => InertiaData::wallets($wallets),
         ]);
     }
 
@@ -55,12 +50,12 @@ class RecurringItemController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
-            'wallet_id' => 'required|exists:wallets,id',
             'day_of_month' => 'required|integer|min:1|max:31',
             'effective_from' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:effective_from',
             'note' => 'nullable|string',
         ]);
+        $validated['wallet_id'] = null;
 
         $this->commands->dispatch(new CreateRecurringItem(
             userId: auth()->id(),
@@ -76,7 +71,6 @@ class RecurringItemController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
-            'wallet_id' => 'required|exists:wallets,id',
             'day_of_month' => 'required|integer|min:1|max:31',
             'effective_from' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:effective_from',
@@ -85,6 +79,7 @@ class RecurringItemController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['wallet_id'] = null;
 
         $this->commands->dispatch(new UpdateRecurringItem(
             userId: auth()->id(),

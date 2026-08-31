@@ -36,12 +36,6 @@ class RecurringItemService
         return $this->stateService->upcomingOccurrences($userId, $withinDays)
             ->map(function (RecurringOccurrence $occ) use ($from) {
                 $item = $occ->recurringItem;
-                $wallet = $item?->wallet;
-
-                $insufficient = false;
-                if ($item && $item->type === 'expense' && $wallet) {
-                    $insufficient = $wallet->spendableBalance() < (float) $occ->expected_amount;
-                }
 
                 return (object) [
                     'occurrence_id' => $occ->id,
@@ -52,8 +46,8 @@ class RecurringItemService
                     'amount' => (float) $occ->expected_amount,
                     'due_date' => $occ->due_date,
                     'days_until' => (int) $from->diffInDays($occ->due_date, false),
-                    'insufficient_funds' => $insufficient,
-                    'wallet' => $wallet,
+                    'insufficient_funds' => false,
+                    'wallet' => null,
                 ];
             })
             ->sortBy('due_date')
