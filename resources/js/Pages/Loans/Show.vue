@@ -21,15 +21,25 @@ function loanTypeName() {
 }
 
 function methodBadge() {
+    if (method.value === 'homecredit') return { label: 'Home Credit EMI', class: 'bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200' };
     if (method.value === 'daily') return { label: 'Actual/365', class: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200' };
     if (method.value === 'custom') return { label: 'Custom (nhập tay)', class: 'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200' };
     return { label: 'Theo tháng cố định', class: 'bg-muted text-content-secondary' };
 }
 
-function fmtDate(val) {
+function fmtDate(val: unknown): string {
     if (!val) return '—';
-    if (typeof val === 'string' && val.includes('/')) return val;
-    return formatDateVi(val);
+    const formatted = formatDateVi(val);
+    return formatted || '—';
+}
+
+function scheduleDateLabel(row: { period_due_date?: unknown; period?: { date?: unknown } }): string | null {
+    const due = fmtDate(row.period_due_date);
+    const scheduled = fmtDate(row.period?.date);
+    if (!scheduled || scheduled === '—' || scheduled === due) {
+        return null;
+    }
+    return scheduled;
 }
 
 function paymentDate(p) {
@@ -111,24 +121,24 @@ const sortedPayments = computed(() =>
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Tháng</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Ngày trả</th>
-                            <th v-if="method === 'daily'" class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Số ngày</th>
+                            <th v-if="method === 'daily' || method === 'homecredit'" class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Số ngày</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Tổng trả</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Tiền gốc</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Tiền lãi</th>
-                            <th v-if="method === 'custom'" class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Phí</th>
+                            <th v-if="method === 'custom' || method === 'homecredit'" class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Phí</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase">Dư nợ còn lại</th>
                         </tr>
                     </thead>
                     <tbody class="bg-surface divide-y divide-default">
                         <template v-for="(row, i) in timeline" :key="i">
                             <tr v-if="row.type === 'early'" class="bg-sky-50 dark:bg-sky-900/30">
-                                <td class="px-6 py-4 text-sm text-sky-800" :colspan="method === 'daily' ? 2 : 1">
+                                <td class="px-6 py-4 text-sm text-sky-800" :colspan="(method === 'daily' || method === 'homecredit') ? 2 : 1">
                                     <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-200">TT trước</span>
                                 </td>
                                 <td class="px-6 py-4 text-sm font-medium text-sky-900">{{ fmtDate(row.payment?.paid_at) }}</td>
-                                <td v-if="method === 'daily'" class="px-6 py-4 text-sm text-sky-600">—</td>
+                                <td v-if="method === 'daily' || method === 'homecredit'" class="px-6 py-4 text-sm text-sky-600">—</td>
                                 <td class="px-6 py-4 text-sm font-medium text-sky-900">{{ formatMoney(row.payment?.amount ?? 0) }}</td>
-                                <td class="px-6 py-4 text-sm text-sky-600" :colspan="method === 'custom' ? 4 : 3">
+                                <td class="px-6 py-4 text-sm text-sky-600" :colspan="(method === 'custom' || method === 'homecredit') ? 4 : 3">
                                     <p>{{ row.note }}</p>
                                     <p v-if="row.period_due_date" class="text-xs mt-1">Kỳ đến hạn {{ fmtDate(row.period_due_date) }} · {{ row.payment?.note }}</p>
                                 </td>
@@ -141,13 +151,13 @@ const sortedPayments = computed(() =>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-content">
                                     {{ fmtDate(row.period_due_date) }}
-                                    <span v-if="row.period?.date" class="block text-xs text-content-muted">Lịch: {{ fmtDate(row.period.date) }}</span>
+                                    <span v-if="scheduleDateLabel(row)" class="block text-xs text-content-muted">Lịch: {{ scheduleDateLabel(row) }}</span>
                                 </td>
-                                <td v-if="method === 'daily'" class="px-6 py-4 text-sm text-content-muted">{{ row.period?.days }} ngày</td>
+                                <td v-if="method === 'daily' || method === 'homecredit'" class="px-6 py-4 text-sm text-content-muted">{{ row.period?.days }} ngày</td>
                                 <td class="px-6 py-4 text-sm font-medium text-content">{{ formatMoney(row.period?.payment ?? 0) }}</td>
                                 <td class="px-6 py-4 text-sm text-content-muted">{{ formatMoney(row.period?.principal ?? 0) }}</td>
                                 <td class="px-6 py-4 text-sm text-content-muted">{{ formatMoney(row.period?.interest ?? 0) }}</td>
-                                <td v-if="method === 'custom'" class="px-6 py-4 text-sm text-content-muted">{{ formatMoney(row.period?.fee ?? 0) }}</td>
+                                <td v-if="method === 'custom' || method === 'homecredit'" class="px-6 py-4 text-sm text-content-muted">{{ formatMoney(row.period?.fee ?? 0) }}</td>
                                 <td class="px-6 py-4 text-sm text-content-muted">{{ formatMoney(row.period?.remaining_principal ?? 0) }}</td>
                             </tr>
                         </template>

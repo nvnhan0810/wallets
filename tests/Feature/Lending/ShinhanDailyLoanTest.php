@@ -4,6 +4,7 @@ namespace Tests\Feature\Lending;
 
 use App\Models\Holiday;
 use App\Models\Loan;
+use App\Models\LoanCustomSchedule;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,5 +108,52 @@ class ShinhanDailyLoanTest extends TestCase
         $monthsPassed = app(LoanPaymentScheduleService::class)->effectiveMonthsPaid($loan, $schedule, collect());
 
         $this->assertSame(60, $monthsPassed);
+    }
+
+    #[Test]
+    public function effective_months_paid_advances_when_due_dates_pass_without_wallet_payment(): void
+    {
+        Carbon::setTestNow('2026-07-01');
+
+        $user = User::factory()->create();
+        $loan = Loan::create([
+            'user_id' => $user->id,
+            'type' => 'bank',
+            'name' => 'Shinhan',
+            'started_at' => '2026-07-05',
+            'interest_calculation_method' => 'daily',
+            'payment_day' => 5,
+            'term_months' => 6,
+            'principal_amount' => 300000000,
+            'interest_rate' => 15.80,
+            'monthly_payment' => 7263576,
+            'months_paid' => 0,
+        ]);
+
+        app(LoanScheduleGenerator::class)->generate($loan, backfillPast: false);
+
+        $schedule = app(AmortizationService::class)->calculate(
+            $loan->id,
+            $loan->principal_amount,
+            $loan->interest_rate,
+            $loan->term_months,
+            $loan->started_at,
+            $loan->monthly_payment,
+            'daily',
+            $loan->payment_day,
+        );
+
+        $this->assertSame(0, app(LoanPaymentScheduleService::class)->effectiveMonthsPaid($loan->fresh(), $schedule, collect()));
+
+        // Kỳ 1 daily thường đến hạn ~07–08; sang tháng 9 chắc chắn đã qua ≥ 1 kỳ.
+        Carbon::setTestNow('2026-09-10');
+        app(LoanScheduleGenerator::class)->backfillPastPeriods($loan->fresh());
+
+        $monthsPassed = app(LoanPaymentScheduleService::class)->effectiveMonthsPaid($loan->fresh(), $schedule, collect());
+        $this->assertGreaterThanOrEqual(1, $monthsPassed);
+        $this->assertSame(
+            LoanCustomSchedule::where('loan_id', $loan->id)->where('status', 'paid')->max('month_index'),
+            $monthsPassed
+        );
     }
 }

@@ -32,6 +32,7 @@ class LoanScheduleGenerator
             $loan->monthly_payment,
             $loan->interest_calculation_method ?? 'monthly',
             $loan->payment_day,
+            $loan->collection_fee ?? 0,
         );
 
         if ($schedule->isEmpty()) {
@@ -68,6 +69,47 @@ class LoanScheduleGenerator
             );
 
             if ($markPaid) {
+                $paidCount++;
+            }
+        }
+
+        if ($paidCount > 0) {
+            $loan->update(['months_paid' => max((int) $loan->months_paid, $paidCount)]);
+        }
+    }
+
+    /**
+     * Mark already-persisted periods with due_date < today as paid (ongoing auto-progress).
+     * Due today stays open so reminders / ghi trả vẫn hoạt động.
+     */
+    public function backfillPastPeriods(Loan $loan): void
+    {
+        if ($loan->type !== 'bank') {
+            return;
+        }
+
+        $today = Carbon::today()->startOfDay();
+        $paidCount = 0;
+
+        $periods = LoanCustomSchedule::query()
+            ->where('loan_id', $loan->id)
+            ->orderBy('month_index')
+            ->get();
+
+        foreach ($periods as $period) {
+            if (! $period->due_date) {
+                continue;
+            }
+            $due = Carbon::parse($period->due_date)->startOfDay();
+            // Chỉ kỳ đã qua ngày đến hạn (không gồm hôm nay — hôm nay vẫn nhắc / ghi trả).
+            if ($due->lt($today) && $period->status !== LoanCustomSchedule::STATUS_PAID) {
+                $period->update([
+                    'status' => LoanCustomSchedule::STATUS_PAID,
+                    'paid_amount' => $period->paid_amount ?? $period->payment,
+                    'paid_at' => $period->paid_at?->toDateString() ?? $due->toDateString(),
+                ]);
+                $paidCount++;
+            } elseif ($period->status === LoanCustomSchedule::STATUS_PAID) {
                 $paidCount++;
             }
         }

@@ -38,6 +38,16 @@ describe('formatDateVi', () => {
         // Valid calendar dates are normalized; only non-Date strings matching d/m/Y pass through.
         expect(formatDateVi('32/13/2026')).toBe('32/13/2026');
     });
+
+    it('should_format_php_datetime_json_object', () => {
+        expect(
+            formatDateVi({
+                date: '2026-08-05 00:00:00.000000',
+                timezone_type: 3,
+                timezone: 'UTC',
+            }),
+        ).toBe('05/08/2026');
+    });
 });
 
 describe('greetingLabel', () => {

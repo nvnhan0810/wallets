@@ -26,8 +26,17 @@ class AmortizationService
         $fixedMonthlyPayment = null,
         $method = 'monthly',
         $paymentDay = null,
+        $collectionFee = 0,
     ): Collection {
         $customRows = $method === 'custom' ? $this->customRows($loanId) : [];
+        // Prefer persisted preview rows for Home Credit (edited schedule).
+        if ($method === \Wallets\Lending\Domain\HomeCreditEmiCalculator::METHOD) {
+            $persisted = $this->customRows($loanId);
+            if ($persisted !== []) {
+                $customRows = $persisted;
+                $method = 'custom';
+            }
+        }
         $holidays = $method === 'daily' ? $this->holidays() : [];
         $start = $this->toImmutable($startDate);
         $resolvedPaymentDay = $paymentDay !== null
@@ -44,6 +53,7 @@ class AmortizationService
             $customRows,
             $holidays,
             $resolvedPaymentDay,
+            (float) $collectionFee,
         );
 
         return collect($rows);

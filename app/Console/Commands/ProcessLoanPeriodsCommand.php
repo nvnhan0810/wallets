@@ -2,21 +2,30 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Loan;
 use App\Models\LoanCustomSchedule;
 use App\Models\Setting;
 use App\Services\TelegramNotifier;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\URL;
+use Wallets\Lending\Application\LoanScheduleGenerator;
 use Wallets\Lending\Application\LoanScheduleStateService;
 
 class ProcessLoanPeriodsCommand extends Command
 {
     protected $signature = 'loans:process-periods';
 
-    protected $description = 'Cập nhật trạng thái kỳ trả (due/overdue) và gửi Telegram nhắc kỳ tới hạn chưa trả';
+    protected $description = 'Backfill kỳ quá hạn = đã trả, cập nhật due/overdue, gửi Telegram nhắc kỳ tới hạn chưa trả';
 
-    public function handle(LoanScheduleStateService $state, TelegramNotifier $telegram): int
-    {
+    public function handle(
+        LoanScheduleStateService $state,
+        LoanScheduleGenerator $generator,
+        TelegramNotifier $telegram,
+    ): int {
+        foreach (Loan::query()->where('type', 'bank')->where('is_settled', false)->cursor() as $loan) {
+            $generator->backfillPastPeriods($loan);
+        }
+
         $state->transitionStatuses();
 
         if (! $telegram->isConfigured()) {

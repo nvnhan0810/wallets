@@ -25,7 +25,9 @@ final class CreateLoanHandler implements CommandHandler
         assert($command instanceof CreateLoan);
 
         $data = $command->data;
-        $isCustom = ($data['interest_calculation_method'] ?? 'monthly') === 'custom';
+        $method = $data['interest_calculation_method'] ?? 'monthly';
+        $isCustom = $method === 'custom';
+        $hasPreviewSchedule = $command->customSchedule !== [];
 
         if ($command->recordCashFlow && empty($data['wallet_id'])) {
             throw new \InvalidArgumentException('wallet_id required when recording cash flow');
@@ -37,7 +39,7 @@ final class CreateLoanHandler implements CommandHandler
 
         $errors = [];
 
-        $loan = DB::transaction(function () use ($command, $data, $isCustom, &$errors) {
+        $loan = DB::transaction(function () use ($command, $data, $isCustom, $hasPreviewSchedule, &$errors) {
             $loan = Loan::create(array_filter([
                 'user_id' => $command->userId,
                 'type' => $data['type'],
@@ -50,14 +52,16 @@ final class CreateLoanHandler implements CommandHandler
                 'term_months' => $data['term_months'] ?? null,
                 'months_paid' => $data['months_paid'] ?? 0,
                 'monthly_payment' => $data['monthly_payment'] ?? null,
+                'collection_fee' => $data['collection_fee'] ?? 0,
                 'payment_day' => $data['payment_day'] ?? null,
             ], fn ($v) => $v !== null));
 
-            if ($isCustom) {
-                $errors = $this->persistCustomSchedule($loan, (float) $data['monthly_payment'], $command->customSchedule);
+            if ($isCustom || $hasPreviewSchedule) {
+                $errors = $this->persistCustomSchedule($loan, (float) ($data['monthly_payment'] ?? 0), $command->customSchedule);
+                $this->scheduleGenerator->backfillPastPeriods($loan->fresh());
+            } else {
+                $this->scheduleGenerator->generate($loan->fresh());
             }
-
-            $this->scheduleGenerator->generate($loan->fresh());
 
             // Chỉ ghi giao dịch vào ví khi ngày bắt đầu là hôm nay (ví và khoản vay độc lập).
             if ($command->recordCashFlow
@@ -91,6 +95,7 @@ final class CreateLoanHandler implements CommandHandler
             $principal = (float) $row['principal'];
             $interest = (float) $row['interest'];
             $fee = (float) ($row['fee'] ?? 0);
+            $isLast = $idx === count($rows) - 1;
 
             if (round($principal + $interest + $fee, 0) !== round($payment, 0)) {
                 $errors[] = 'Dòng '.($idx + 1).': Gốc + Lãi + Phí phải bằng Tổng trả.';
@@ -98,7 +103,7 @@ final class CreateLoanHandler implements CommandHandler
                 continue;
             }
 
-            if (round($payment, 0) > round($monthlyPayment, 0)) {
+            if (! $isLast && round($payment, 0) > round($monthlyPayment, 0)) {
                 $errors[] = 'Dòng '.($idx + 1).': Tổng trả vượt số tiền hàng tháng.';
 
                 continue;

@@ -36,9 +36,22 @@ final class AmortizationCalculator
         array $customRows = [],
         array $holidays = [],
         int $paymentDay = 0,
+        float $collectionFee = 0.0,
     ): array {
         if ($method === 'custom') {
             return $this->buildCustomSchedule($principal, $customRows);
+        }
+
+        if ($method === HomeCreditEmiCalculator::METHOD) {
+            return (new HomeCreditEmiCalculator)->calculate(
+                $principal,
+                $annualRate,
+                $months,
+                $startDate,
+                (float) ($fixedMonthlyPayment ?? 0),
+                $collectionFee,
+                $paymentDay,
+            );
         }
 
         $balance = $principal;
