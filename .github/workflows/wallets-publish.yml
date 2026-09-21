@@ -1,25 +1,30 @@
-name: Publish Docker image
+name: Publish Wallets Docker image
 
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       deploy_only:
-        description: 'Skip build, only trigger deploy webhook'
+        description: "Skip build, only trigger deploy webhook"
         type: boolean
         default: false
       image_tag:
-        description: 'Image tag (7-char SHA) when deploy_only=true. Empty = current commit SHA.'
+        description: "Image tag when deploy_only=true (e.g. abc1234). Empty = short SHA."
         required: false
         type: string
 
+concurrency:
+  group: wallets-publish-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Must match k3s apps/wallets.nvnhan0810.com/kustomization.yaml
+  IMAGE_NAME: nvnhan0810/nvnhan0810.com/wallets
   DEPLOY_REPO: wallets
   DEPLOY_TAG: production
 
@@ -51,11 +56,13 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            # Floating tag for quick pulls / default Deployment
+            type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Pin used by deploy webhook + kustomize
+            type=sha,prefix=,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=short,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -67,14 +74,21 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_URL=https://wallets.nvnhan0810.com
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=wallets-production
+          cache-to: type=gha,mode=max,scope=wallets-production
+          provenance: false
+          sbom: false
 
   deploy:
     needs: build-and-push
-    if: always() && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
+    if: >
+      always()
+      && github.event_name != 'pull_request'
+      && (
+        needs.build-and-push.result == 'success'
+        || (needs.build-and-push.result == 'skipped' && github.event_name == 'workflow_dispatch' && inputs.deploy_only == true)
+      )
     runs-on: ubuntu-latest
-
     steps:
       - name: Resolve image tag
         id: image
@@ -84,7 +98,6 @@ jobs:
           else
             TAG="${GITHUB_SHA:0:7}"
           fi
-
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Deploying image tag: ${TAG}"
 
@@ -99,7 +112,7 @@ jobs:
             exit 0
           fi
 
-          IMAGE="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           IMAGE_TAG="${{ steps.image.outputs.tag }}"
 
           curl -fsS --max-time 30 -X POST 'https://deploy.nvnhan0810.com/deploy' \
