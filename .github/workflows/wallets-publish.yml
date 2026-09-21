@@ -25,7 +25,7 @@ env:
   REGISTRY: ghcr.io
   # Must match k3s apps/wallets.nvnhan0810.com/kustomization.yaml
   IMAGE_NAME: nvnhan0810/wallets
-  DEPLOY_REPO: wallets
+  DEPLOY_REPO: wallets_nvnhan0810_com
   DEPLOY_TAG: production
 
 jobs:
