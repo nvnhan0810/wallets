@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, WALLET_TYPES } from '@/domain';
 
 const props = defineProps({
@@ -25,6 +27,13 @@ const form = useForm({
 });
 
 const isCreditCard = computed(() => form.type === 'credit_card');
+
+const walletTypeOptions = computed((): AppSelectOption[] =>
+    Object.entries(props.walletTypes).map(([key, label]) => ({
+        value: key,
+        label: String(label),
+    })),
+);
 
 const availableCredit = computed(() =>
     Math.max(0, (Number(form.credit_limit) || 0) - (Number(form.outstanding_balance) || 0)),
@@ -54,9 +63,13 @@ function submit() {
 
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Loại ví</label>
-                    <select v-model="form.type" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                        <option v-for="(label, key) in walletTypes" :key="key" :value="key">{{ label }}</option>
-                    </select>
+                    <AppSelect
+                        v-model="form.type"
+                        class="mt-1"
+                        :options="walletTypeOptions"
+                        :searchable="false"
+                        required
+                    />
                 </div>
 
                 <div v-if="isEdit" class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-4 text-sm">

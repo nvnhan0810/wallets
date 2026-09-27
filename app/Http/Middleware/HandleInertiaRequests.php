@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Wallets\DebtGoal\Application\Query\GetDebtGoalProgress;
+use Wallets\Shared\Application\QueryBus;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -32,6 +34,15 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'import_errors' => fn () => $request->session()->get('import_errors'),
             ],
+            'debtGoal' => function () use ($request) {
+                if (! $request->user()) {
+                    return null;
+                }
+
+                return app(QueryBus::class)->ask(new GetDebtGoalProgress(
+                    userId: (int) $request->user()->id,
+                ));
+            },
         ];
     }
 }

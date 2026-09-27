@@ -4,6 +4,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
@@ -36,6 +38,10 @@ const settleForm = useForm({
 
 const loansIndex = computed(() =>
     Object.fromEntries(props.loans.map((l) => [l.id, l])),
+);
+
+const walletOptions = computed((): AppSelectOption[] =>
+    props.wallets.map((w) => ({ value: w.id, label: w.name })),
 );
 
 function cashFlowHint(type, action) {
@@ -123,6 +129,7 @@ onMounted(() => {
             <Link :href="route('loans.index')" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Khoản vay & Nợ</Link>
             <Link :href="route('recurring-items.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Thu chi cố định</Link>
             <Link :href="route('fixed-expenses.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Tổng hợp chi cố định</Link>
+            <Link :href="route('debt-goals.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm transition-colors">Mục tiêu trả nợ</Link>
         </div>
 
         <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -223,9 +230,15 @@ onMounted(() => {
                                 </p>
                                 <div>
                                     <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                                    <select v-model="paymentForm.wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                        <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                                    </select>
+                                    <AppSelect
+                                        v-model="paymentForm.wallet_id"
+                                        class="mt-1"
+                                        :options="walletOptions"
+                                        :searchable="true"
+                                        required
+                                        size="sm"
+                                        search-placeholder="Tìm..."
+                                    />
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-content-secondary">Số tiền</label>
@@ -262,9 +275,15 @@ onMounted(() => {
                             <p v-if="selectedLoan" class="text-xs text-green-700 bg-green-50 dark:bg-green-900/30 p-2 rounded">{{ cashFlowHint(selectedLoan.type, 'payment') }}</p>
                             <div>
                                 <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                                <select v-model="settleForm.wallet_id" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                    <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                                </select>
+                                <AppSelect
+                                    v-model="settleForm.wallet_id"
+                                    class="mt-1"
+                                    :options="walletOptions"
+                                    :searchable="true"
+                                    required
+                                    size="sm"
+                                    search-placeholder="Tìm..."
+                                />
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-content-secondary">Số tiền (₫)</label>

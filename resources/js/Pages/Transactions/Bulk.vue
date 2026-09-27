@@ -4,6 +4,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
@@ -33,6 +35,44 @@ function emptyRow(overrides = {}) {
 }
 
 const defaultWalletId = ref(props.defaultWalletId ?? props.wallets[0]?.id ?? '');
+
+const templateQuickPick = ref<string | number>('');
+
+const walletOptions = computed((): AppSelectOption[] =>
+    props.wallets.map((w) => ({ value: w.id, label: w.name })),
+);
+
+const walletOptionsWithEmpty = computed((): AppSelectOption[] => [
+    { value: '', label: 'Chọn ví' },
+    ...walletOptions.value,
+]);
+
+const templateQuickOptions = computed((): AppSelectOption[] => [
+    { value: '', label: '— Chọn mẫu —' },
+    ...props.templates.map((t) => ({
+        value: t.id,
+        label: `${t.name} (${t.type_label})`,
+    })),
+]);
+
+const rowTemplateOptions = computed((): AppSelectOption[] => [
+    { value: '', label: '—' },
+    ...props.templates.map((t) => ({ value: t.id, label: t.name })),
+]);
+
+const rowTypeOptions: AppSelectOption[] = [
+    { value: 'expense', label: 'Chi' },
+    { value: 'income', label: 'Thu' },
+    { value: 'transfer', label: 'Chuyển ví' },
+];
+
+function onTemplateQuickChange(value: string | number | null): void {
+    if (value === '' || value === null) {
+        return;
+    }
+    fillFromTemplateQuick(value);
+    templateQuickPick.value = '';
+}
 
 const form = useForm({
     transacted_at: props.defaultDate || todayVi(),
@@ -162,16 +202,23 @@ function fieldError(index, field) {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary mb-1">Ví mặc định (thu/chi)</label>
-                    <select v-model="defaultWalletId" class="block w-full rounded-md border border-strong bg-surface text-content p-2" @change="applyDefaultWalletToEmpty">
-                        <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                    </select>
+                    <AppSelect
+                        v-model="defaultWalletId"
+                        :options="walletOptions"
+                        :searchable="true"
+                        search-placeholder="Tìm..."
+                        @change="applyDefaultWalletToEmpty"
+                    />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary mb-1">Thêm từ mẫu</label>
-                    <select class="block w-full rounded-md border border-strong bg-surface text-content p-2" @change="fillFromTemplateQuick($event.target.value); $event.target.value = ''">
-                        <option value="">— Chọn mẫu —</option>
-                        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }} ({{ t.type_label }})</option>
-                    </select>
+                    <AppSelect
+                        v-model="templateQuickPick"
+                        :options="templateQuickOptions"
+                        :searchable="true"
+                        search-placeholder="Tìm..."
+                        @change="onTemplateQuickChange"
+                    />
                 </div>
             </div>
 
@@ -191,11 +238,7 @@ function fieldError(index, field) {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-content-muted mb-1">Loại</label>
-                            <select v-model="row.type" class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                <option value="expense">Chi</option>
-                                <option value="income">Thu</option>
-                                <option value="transfer">Chuyển ví</option>
-                            </select>
+                            <AppSelect v-model="row.type" :options="rowTypeOptions" :searchable="false" size="sm" />
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-content-muted mb-1">Số tiền</label>
@@ -212,10 +255,14 @@ function fieldError(index, field) {
                     <div v-if="row.type !== 'transfer'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-content-muted mb-1">Ví</label>
-                            <select v-model="row.wallet_id" class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                <option value="">Chọn ví</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="row.wallet_id"
+                                :options="walletOptionsWithEmpty"
+                                placeholder="Chọn ví"
+                                :searchable="true"
+                                size="sm"
+                                search-placeholder="Tìm..."
+                            />
                             <p v-if="fieldError(index, 'wallet_id')" class="mt-1 text-xs text-red-600">{{ fieldError(index, 'wallet_id') }}</p>
                         </div>
                         <div>
@@ -231,18 +278,26 @@ function fieldError(index, field) {
                     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-content-muted mb-1">Từ ví</label>
-                            <select v-model="row.from_wallet_id" class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                <option value="">Chọn ví</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="row.from_wallet_id"
+                                :options="walletOptionsWithEmpty"
+                                placeholder="Chọn ví"
+                                :searchable="true"
+                                size="sm"
+                                search-placeholder="Tìm..."
+                            />
                             <p v-if="fieldError(index, 'from_wallet_id')" class="mt-1 text-xs text-red-600">{{ fieldError(index, 'from_wallet_id') }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-content-muted mb-1">Đến ví</label>
-                            <select v-model="row.to_wallet_id" class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                <option value="">Chọn ví</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="row.to_wallet_id"
+                                :options="walletOptionsWithEmpty"
+                                placeholder="Chọn ví"
+                                :searchable="true"
+                                size="sm"
+                                search-placeholder="Tìm..."
+                            />
                             <p v-if="fieldError(index, 'to_wallet_id')" class="mt-1 text-xs text-red-600">{{ fieldError(index, 'to_wallet_id') }}</p>
                         </div>
                         <div>
@@ -257,14 +312,15 @@ function fieldError(index, field) {
 
                     <div v-if="templates.length" class="flex items-center gap-2">
                         <label class="text-xs text-content-muted shrink-0">Mẫu:</label>
-                        <select
-                            class="flex-1 rounded-md border border-strong bg-surface text-content p-1.5 text-xs"
-                            :value="row.transaction_template_id || ''"
-                            @change="applyTemplate(index, $event.target.value)"
-                        >
-                            <option value="">—</option>
-                            <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                        </select>
+                        <AppSelect
+                            :model-value="row.transaction_template_id || ''"
+                            class="flex-1 min-w-0"
+                            :options="rowTemplateOptions"
+                            :searchable="true"
+                            size="sm"
+                            search-placeholder="Tìm..."
+                            @change="(value) => applyTemplate(index, value)"
+                        />
                     </div>
                 </div>
             </div>

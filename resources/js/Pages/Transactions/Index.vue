@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, formatDateVi, TX_TYPES } from '@/domain';
 
 const props = defineProps({
@@ -14,6 +16,16 @@ const filterForm = {
     wallet_id: props.filters.wallet_id ?? '',
     type: props.filters.type ?? '',
 };
+
+const walletFilterOptions = computed((): AppSelectOption[] => [
+    { value: '', label: 'Tất cả' },
+    ...props.wallets.map((w) => ({ value: String(w.id), label: w.name })),
+]);
+
+const typeFilterOptions = computed((): AppSelectOption[] => [
+    { value: '', label: 'Tất cả' },
+    ...Object.entries(TX_TYPES).map(([key, label]) => ({ value: key, label: String(label) })),
+]);
 
 function applyFilters() {
     router.get(route('transactions.index'), {
@@ -82,17 +94,24 @@ function deleteTx(tx) {
         <form class="mb-6 flex flex-wrap gap-3 items-end bg-surface p-4 rounded-lg shadow border border-subtle" @submit.prevent="applyFilters">
             <div>
                 <label class="block text-xs font-medium text-gray-600 dark:text-slate-500">Ví</label>
-                <select v-model="filterForm.wallet_id" class="mt-1 rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                    <option value="">Tất cả</option>
-                    <option v-for="w in wallets" :key="w.id" :value="String(w.id)">{{ w.name }}</option>
-                </select>
+                <AppSelect
+                    v-model="filterForm.wallet_id"
+                    class="mt-1"
+                    :options="walletFilterOptions"
+                    :searchable="true"
+                    size="sm"
+                    search-placeholder="Tìm..."
+                />
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 dark:text-slate-500">Loại</label>
-                <select v-model="filterForm.type" class="mt-1 rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                    <option value="">Tất cả</option>
-                    <option v-for="(label, key) in TX_TYPES" :key="key" :value="key">{{ label }}</option>
-                </select>
+                <AppSelect
+                    v-model="filterForm.type"
+                    class="mt-1"
+                    :options="typeFilterOptions"
+                    :searchable="false"
+                    size="sm"
+                />
             </div>
             <button type="submit" class="px-4 py-2 bg-gray-800 dark:bg-slate-700 text-white text-sm rounded-md hover:bg-gray-900 dark:hover:bg-slate-600">Lọc</button>
         </form>

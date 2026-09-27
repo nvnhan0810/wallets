@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatDateVi, formatMoney } from '@/domain';
 import {
     FIXED_EXPENSE_DEFAULT_CUSTOM_DAYS,
@@ -60,6 +62,10 @@ watch(
     },
 );
 
+const granularitySelectOptions = computed((): AppSelectOption[] =>
+    props.granularity_options.map((opt) => ({ value: opt.value, label: opt.label })),
+);
+
 const showCustomDays = computed(() => isCustomGranularity(granularity.value));
 const startType = computed(() => startInputType(granularity.value));
 const minStartValue = computed(() => startInputValue(granularity.value, props.min_start));
@@ -104,6 +110,7 @@ function itemLink(item: PeriodItem): string | null {
             <Link :href="route('loans.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Khoản vay & Nợ</Link>
             <Link :href="route('recurring-items.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Thu chi cố định</Link>
             <Link :href="route('fixed-expenses.index')" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Tổng hợp chi cố định</Link>
+            <Link :href="route('debt-goals.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Mục tiêu trả nợ</Link>
         </div>
 
         <p class="mb-4 text-sm text-content-muted">
@@ -113,9 +120,13 @@ function itemLink(item: PeriodItem): string | null {
         <form class="bg-surface shadow rounded-lg border border-default p-4 sm:p-5 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end" @submit.prevent="applyFilters">
             <div>
                 <label class="block text-sm font-medium text-content-secondary">Thời gian</label>
-                <select v-model="granularity" class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2" @change="onGranularityChange">
-                    <option v-for="opt in granularity_options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
+                <AppSelect
+                    v-model="granularity"
+                    class="mt-1"
+                    :options="granularitySelectOptions"
+                    :searchable="false"
+                    @change="onGranularityChange"
+                />
             </div>
             <div>
                 <label class="block text-sm font-medium text-content-secondary">Bắt đầu</label>

@@ -2,6 +2,8 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { todayVi } from '@/domain';
 
 defineProps({
@@ -17,6 +19,12 @@ const addForm = useForm({
 const importForm = useForm({
     file: null,
 });
+
+const holidayTypeOptions: AppSelectOption[] = [
+    { value: 'public', label: 'Ngày lễ công cộng' },
+    { value: 'bank', label: 'Ngày nghỉ ngân hàng' },
+    { value: 'custom', label: 'Tùy chỉnh' },
+];
 
 function submitAdd() {
     addForm.post(route('holidays.store'));
@@ -64,11 +72,13 @@ function typeLabel(type) {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Loại</label>
-                        <select v-model="addForm.type" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm">
-                            <option value="public">Ngày lễ công cộng</option>
-                            <option value="bank">Ngày nghỉ ngân hàng</option>
-                            <option value="custom">Tùy chỉnh</option>
-                        </select>
+                        <AppSelect
+                            v-model="addForm.type"
+                            class="mt-1"
+                            :options="holidayTypeOptions"
+                            :searchable="false"
+                            size="sm"
+                        />
                     </div>
                     <div class="flex items-end">
                         <button type="submit" class="w-full rounded-md bg-primary-600 py-2 px-4 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50" :disabled="addForm.processing">Thêm</button>

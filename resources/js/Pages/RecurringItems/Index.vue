@@ -3,6 +3,8 @@ import { computed, reactive, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { diffEditFormIds } from '@/domain/reporting/edit-form-sync';
 
 type RecurringItemRow = {
@@ -101,6 +103,16 @@ function deleteItem(item: RecurringItemRow): void {
     router.delete(route('recurring-items.destroy', item.id));
 }
 
+const recurringTypeOptionsCreate: AppSelectOption[] = [
+    { value: 'expense', label: 'Chi cố định' },
+    { value: 'income', label: 'Thu cố định' },
+];
+
+const recurringTypeOptionsEdit: AppSelectOption[] = [
+    { value: 'expense', label: 'Chi' },
+    { value: 'income', label: 'Thu' },
+];
+
 function formatNextDue(d: string | null): string {
     if (!d) return '—';
     const s = String(d).slice(0, 10);
@@ -120,6 +132,7 @@ function formatNextDue(d: string | null): string {
             <Link :href="route('loans.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Khoản vay & Nợ</Link>
             <Link :href="route('recurring-items.index')" class="px-4 py-2 border-b-2 border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400 font-semibold text-sm">Thu chi cố định</Link>
             <Link :href="route('fixed-expenses.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Tổng hợp chi cố định</Link>
+            <Link :href="route('debt-goals.index')" class="px-4 py-2 border-b-2 border-transparent text-content-muted hover:text-content font-medium text-sm">Mục tiêu trả nợ</Link>
         </div>
 
         <p class="mb-6 text-sm text-content-muted">Đặt ngày trong tháng và khoảng hiệu lực. Nhắc sẽ hiện trên tổng quan khi gần đến hạn; chọn ví lúc ghi giao dịch thực tế.</p>
@@ -133,10 +146,13 @@ function formatNextDue(d: string | null): string {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Loại</label>
-                    <select v-model="createForm.type" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                        <option value="expense">Chi cố định</option>
-                        <option value="income">Thu cố định</option>
-                    </select>
+                    <AppSelect
+                        v-model="createForm.type"
+                        class="mt-1"
+                        :options="recurringTypeOptionsCreate"
+                        :searchable="false"
+                        required
+                    />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Số tiền (₫)</label>
@@ -177,10 +193,13 @@ function formatNextDue(d: string | null): string {
                     </div>
                     <div>
                         <label class="text-xs text-content-muted">Loại</label>
-                        <select v-model="row.form.type" class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                            <option value="expense">Chi</option>
-                            <option value="income">Thu</option>
-                        </select>
+                        <AppSelect
+                            v-model="row.form.type"
+                            class="mt-1"
+                            :options="recurringTypeOptionsEdit"
+                            :searchable="false"
+                            size="sm"
+                        />
                     </div>
                     <div>
                         <label class="text-xs text-content-muted">Số tiền</label>

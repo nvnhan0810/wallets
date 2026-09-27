@@ -29,6 +29,14 @@ use Wallets\Lending\Application\Handler\RecordLoanPaymentHandler;
 use Wallets\Lending\Application\Handler\SettleLoanHandler;
 use Wallets\Lending\Application\Query\GetLoanDetail;
 use Wallets\Lending\Application\Query\ListActiveLoans;
+use Wallets\DebtGoal\Application\Command\UpdateDebtGoal;
+use Wallets\DebtGoal\Application\Handler\GetDebtGoalDetailHandler;
+use Wallets\DebtGoal\Application\Handler\GetDebtGoalProgressHandler;
+use Wallets\DebtGoal\Application\Handler\GetDebtGoalSettingsHandler;
+use Wallets\DebtGoal\Application\Handler\UpdateDebtGoalHandler;
+use Wallets\DebtGoal\Application\Query\GetDebtGoalDetail;
+use Wallets\DebtGoal\Application\Query\GetDebtGoalProgress;
+use Wallets\DebtGoal\Application\Query\GetDebtGoalSettings;
 use Wallets\Preferences\Application\Command\UpdateSettings;
 use Wallets\Preferences\Application\Handler\GetSettingsHandler;
 use Wallets\Preferences\Application\Handler\UpdateSettingsHandler;
@@ -112,6 +120,7 @@ class WalletsServiceProvider extends ServiceProvider
             DeleteHoliday::class => DeleteHolidayHandler::class,
             ImportHolidays::class => ImportHolidaysHandler::class,
             UpdateSettings::class => UpdateSettingsHandler::class,
+            UpdateDebtGoal::class => UpdateDebtGoalHandler::class,
         ];
     }
 
@@ -130,6 +139,9 @@ class WalletsServiceProvider extends ServiceProvider
             GetSettings::class => GetSettingsHandler::class,
             GetDashboardOverview::class => GetDashboardOverviewHandler::class,
             GetFixedExpenseSummary::class => GetFixedExpenseSummaryHandler::class,
+            GetDebtGoalProgress::class => GetDebtGoalProgressHandler::class,
+            GetDebtGoalSettings::class => GetDebtGoalSettingsHandler::class,
+            GetDebtGoalDetail::class => GetDebtGoalDetailHandler::class,
         ];
     }
 }

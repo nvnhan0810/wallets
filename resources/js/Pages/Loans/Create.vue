@@ -4,6 +4,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
@@ -50,6 +52,27 @@ const walletName = computed(() => {
     const w = props.wallets.find((x: { id: number | string }) => String(x.id) === String(form.wallet_id)) as { name?: string } | undefined;
     return w?.name ?? '';
 });
+
+const loanTypeOptions: AppSelectOption[] = [
+    { value: 'bank', label: 'Vay Ngân Hàng (Có lãi suất)' },
+    { value: 'borrow', label: 'Mượn Nợ (Cá nhân)' },
+    { value: 'lend', label: 'Cho Mượn (Tài sản)' },
+];
+
+const walletOptions = computed((): AppSelectOption[] => [
+    { value: '', label: 'Chọn ví' },
+    ...props.wallets.map((w: { id: number | string; name: string }) => ({
+        value: w.id,
+        label: w.name,
+    })),
+]);
+
+const interestMethodOptions: AppSelectOption[] = [
+    { value: 'homecredit', label: 'Home Credit (EMI + Actual/365)' },
+    { value: 'monthly', label: 'Lãi suất cố định theo tháng (Đơn giản)' },
+    { value: 'daily', label: 'Tính theo ngày thực tế (Actual/365 - Ngân hàng)' },
+    { value: 'custom', label: 'Tùy chỉnh thủ công từng tháng' },
+];
 
 const typeLabel = computed(() => ({ bank: 'Vay ngân hàng', borrow: 'Mượn nợ', lend: 'Cho mượn' }[form.type] || form.type));
 const methodLabel = computed(() => ({
@@ -219,11 +242,13 @@ syncMonthsPaid(!draft.months_paid);
                         <div class="px-4 py-5 bg-surface space-y-6 sm:p-6">
                             <div>
                                 <label class="block text-sm font-medium text-content-secondary">Loại khoản nợ</label>
-                                <select v-model="form.type" class="mt-1 block w-full py-2 px-3 border border-strong bg-surface text-content rounded-md sm:text-sm">
-                                    <option value="bank">Vay Ngân Hàng (Có lãi suất)</option>
-                                    <option value="borrow">Mượn Nợ (Cá nhân)</option>
-                                    <option value="lend">Cho Mượn (Tài sản)</option>
-                                </select>
+                                <AppSelect
+                                    v-model="form.type"
+                                    class="mt-1"
+                                    :options="loanTypeOptions"
+                                    :searchable="false"
+                                    size="sm"
+                                />
                             </div>
 
                             <div class="grid grid-cols-6 gap-6">
@@ -252,10 +277,16 @@ syncMonthsPaid(!draft.months_paid);
                                 <div v-if="form.record_cash_flow" class="space-y-3">
                                     <div>
                                         <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                                        <select v-model="form.wallet_id" :required="form.record_cash_flow && startsToday" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm">
-                                            <option value="">Chọn ví</option>
-                                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                                        </select>
+                                        <AppSelect
+                                            v-model="form.wallet_id"
+                                            class="mt-1"
+                                            :options="walletOptions"
+                                            placeholder="Chọn ví"
+                                            :searchable="true"
+                                            :required="form.record_cash_flow && startsToday"
+                                            size="sm"
+                                            search-placeholder="Tìm..."
+                                        />
                                         <p v-if="!wallets.length" class="mt-1 text-xs text-red-600"><Link :href="route('wallets.create')" class="underline">Tạo ví</Link> trước.</p>
                                     </div>
                                     <div>
@@ -276,12 +307,13 @@ syncMonthsPaid(!draft.months_paid);
                                 </div>
                                 <div class="col-span-6 sm:col-span-4">
                                     <label class="block text-sm font-medium text-content-secondary">Phương pháp tính lãi</label>
-                                    <select v-model="form.interest_calculation_method" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm">
-                                        <option value="homecredit">Home Credit (EMI + Actual/365)</option>
-                                        <option value="monthly">Lãi suất cố định theo tháng (Đơn giản)</option>
-                                        <option value="daily">Tính theo ngày thực tế (Actual/365 - Ngân hàng)</option>
-                                        <option value="custom">Tùy chỉnh thủ công từng tháng</option>
-                                    </select>
+                                    <AppSelect
+                                        v-model="form.interest_calculation_method"
+                                        class="mt-1"
+                                        :options="interestMethodOptions"
+                                        :searchable="false"
+                                        size="sm"
+                                    />
                                 </div>
                                 <div class="col-span-6 sm:col-span-2">
                                     <label class="block text-sm font-medium text-content-secondary">Thời hạn (Tháng)</label>

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney } from '@/domain';
 
-defineProps({
+const props = defineProps({
     templates: { type: Array, default: () => [] },
     wallets: { type: Array, default: () => [] },
 });
@@ -30,6 +32,27 @@ const form = useForm({
 function onTypeChange() {
     form.type = formType.value;
 }
+
+const templateTypeOptions: AppSelectOption[] = [
+    { value: 'expense', label: 'Chi' },
+    { value: 'income', label: 'Thu' },
+    { value: 'adjustment', label: 'Cân đối' },
+    { value: 'transfer', label: 'Chuyển / Rút ví' },
+];
+
+const walletOptions = computed((): AppSelectOption[] =>
+    props.wallets.map((w) => ({ value: w.id, label: w.name })),
+);
+
+const walletOptionsWithDash = computed((): AppSelectOption[] => [
+    { value: '', label: '—' },
+    ...walletOptions.value,
+]);
+
+const adjustmentDirectionOptions: AppSelectOption[] = [
+    { value: 'increase', label: 'Tăng số dư' },
+    { value: 'decrease', label: 'Giảm số dư' },
+];
 
 function submit() {
     form.type = formType.value;
@@ -59,12 +82,14 @@ function deleteTemplate(t) {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Loại</label>
-                    <select v-model="formType" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2" @change="onTypeChange">
-                        <option value="expense">Chi</option>
-                        <option value="income">Thu</option>
-                        <option value="adjustment">Cân đối</option>
-                        <option value="transfer">Chuyển / Rút ví</option>
-                    </select>
+                    <AppSelect
+                        v-model="formType"
+                        class="mt-1"
+                        :options="templateTypeOptions"
+                        :searchable="false"
+                        required
+                        @change="onTypeChange"
+                    />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Số tiền (₫)</label>
@@ -82,41 +107,62 @@ function deleteTemplate(t) {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Ví mặc định</label>
-                        <select v-model="form.default_wallet_id" class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option value="">—</option>
-                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.default_wallet_id"
+                            class="mt-1"
+                            :options="walletOptionsWithDash"
+                            :searchable="true"
+                            search-placeholder="Tìm..."
+                        />
                     </div>
                 </template>
 
                 <template v-if="formType === 'adjustment'">
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                        <select v-model="form.default_wallet_id" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.default_wallet_id"
+                            class="mt-1"
+                            :options="walletOptions"
+                            :searchable="true"
+                            required
+                            search-placeholder="Tìm..."
+                        />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Hướng cân đối</label>
-                        <select v-model="form.adjustment_direction" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option value="increase">Tăng số dư</option>
-                            <option value="decrease">Giảm số dư</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.adjustment_direction"
+                            class="mt-1"
+                            :options="adjustmentDirectionOptions"
+                            :searchable="false"
+                            required
+                        />
                     </div>
                 </template>
 
                 <template v-if="formType === 'transfer'">
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Từ ví</label>
-                        <select v-model="form.from_wallet_id" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.from_wallet_id"
+                            class="mt-1"
+                            :options="walletOptions"
+                            :searchable="true"
+                            required
+                            search-placeholder="Tìm..."
+                        />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Đến ví</label>
-                        <select v-model="form.to_wallet_id" required class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.to_wallet_id"
+                            class="mt-1"
+                            :options="walletOptions"
+                            :searchable="true"
+                            required
+                            search-placeholder="Tìm..."
+                        />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Phí (₫)</label>

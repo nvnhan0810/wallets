@@ -4,6 +4,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MoneyInput from '@/Components/MoneyInput.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import AppSelect from '@/Components/AppSelect.vue';
+import type { AppSelectOption } from '@/Components/AppSelect.vue';
 import { formatMoney, todayVi } from '@/domain';
 
 const props = defineProps({
@@ -63,6 +65,32 @@ const adjustmentPreview = computed(() => {
 
 const transferTotal = computed(() => (Number(form.amount) || 0) + (Number(form.fee) || 0));
 
+const templateOptions = computed((): AppSelectOption[] => [
+    { value: '', label: '— Không dùng mẫu —' },
+    ...props.templates.map((t) => ({
+        value: String(t.id),
+        label: `${t.name} (${t.type_label})`,
+    })),
+]);
+
+const transactionTypeOptions: AppSelectOption[] = [
+    { value: 'expense', label: 'Chi' },
+    { value: 'income', label: 'Thu' },
+    { value: 'adjustment', label: 'Cân đối' },
+    { value: 'transfer', label: 'Chuyển / Rút ví' },
+];
+
+const walletNameOptions = computed((): AppSelectOption[] =>
+    props.wallets.map((w) => ({ value: w.id, label: w.name })),
+);
+
+const walletBalanceOptions = computed((): AppSelectOption[] =>
+    props.wallets.map((w) => ({
+        value: w.id,
+        label: `${w.name} (${formatMoney(w.balance)})`,
+    })),
+);
+
 function applyTemplate(id) {
     if (!id) {
         form.transaction_template_id = '';
@@ -116,20 +144,24 @@ function submit() {
             <form class="bg-surface shadow rounded-lg p-6 space-y-4" @submit.prevent="submit">
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Chọn mẫu (tùy chọn)</label>
-                    <select v-model="selectedTemplateSelect" class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                        <option value="">— Không dùng mẫu —</option>
-                        <option v-for="t in templates" :key="t.id" :value="String(t.id)">{{ t.name }} ({{ t.type_label }})</option>
-                    </select>
+                    <AppSelect
+                        v-model="selectedTemplateSelect"
+                        class="mt-1"
+                        :options="templateOptions"
+                        :searchable="true"
+                        search-placeholder="Tìm..."
+                    />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-content-secondary">Loại giao dịch</label>
-                    <select v-model="form.type" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                        <option value="expense">Chi</option>
-                        <option value="income">Thu</option>
-                        <option value="adjustment">Cân đối</option>
-                        <option value="transfer">Chuyển / Rút ví</option>
-                    </select>
+                    <AppSelect
+                        v-model="form.type"
+                        class="mt-1"
+                        :options="transactionTypeOptions"
+                        :searchable="false"
+                        required
+                    />
                 </div>
 
                 <!-- Thu / Chi -->
@@ -137,10 +169,15 @@ function submit() {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                            <select v-model="form.wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                                <option value="">Chọn ví</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="form.wallet_id"
+                                class="mt-1"
+                                :options="walletNameOptions"
+                                placeholder="Chọn ví"
+                                :searchable="true"
+                                required
+                                search-placeholder="Tìm..."
+                            />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-content-secondary">Số tiền (₫)</label>
@@ -162,9 +199,14 @@ function submit() {
                     <p class="text-xs text-amber-800 dark:text-amber-200">Nhập số dư cuối cùng cần khớp. Hệ thống tự tính mức tăng/giảm so với số dư hiện tại.</p>
                     <div>
                         <label class="block text-sm font-medium text-content-secondary">Ví</label>
-                        <select v-model="form.wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }} ({{ formatMoney(w.balance) }})</option>
-                        </select>
+                        <AppSelect
+                            v-model="form.wallet_id"
+                            class="mt-1"
+                            :options="walletBalanceOptions"
+                            :searchable="true"
+                            required
+                            search-placeholder="Tìm..."
+                        />
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -192,17 +234,27 @@ function submit() {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-content-secondary">Từ ví</label>
-                            <select v-model="form.from_wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                                <option value="">Chọn ví nguồn</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="form.from_wallet_id"
+                                class="mt-1"
+                                :options="walletNameOptions"
+                                placeholder="Chọn ví nguồn"
+                                :searchable="true"
+                                required
+                                search-placeholder="Tìm..."
+                            />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-content-secondary">Đến ví</label>
-                            <select v-model="form.to_wallet_id" required class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2">
-                                <option value="">Chọn ví đích</option>
-                                <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }}</option>
-                            </select>
+                            <AppSelect
+                                v-model="form.to_wallet_id"
+                                class="mt-1"
+                                :options="walletNameOptions"
+                                placeholder="Chọn ví đích"
+                                :searchable="true"
+                                required
+                                search-placeholder="Tìm..."
+                            />
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
