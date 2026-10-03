@@ -157,9 +157,12 @@ onMounted(() => {
                         </Link>
                         <p class="mt-1 max-w-2xl text-sm text-content-muted">{{ loanTypeLabel(loan) }}</p>
                     </div>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :class="loan.type === 'lend' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-red-100 text-red-800'">
-                        {{ loan.type === 'lend' ? 'Tài sản' : 'Nợ phải trả' }}
-                    </span>
+                    <div class="flex flex-col items-end gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :class="loan.type === 'lend' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-red-100 text-red-800'">
+                            {{ loan.type === 'lend' ? 'Tài sản' : 'Nợ phải trả' }}
+                        </span>
+                        <Link :href="route('loans.edit', loan.id)" class="text-xs text-primary-600 dark:text-primary-400 hover:underline">Sửa</Link>
+                    </div>
                 </div>
 
                 <div class="px-4 py-5 sm:p-6">
@@ -184,6 +187,9 @@ onMounted(() => {
                                 <dt class="text-xs font-medium text-content-muted">Đóng hàng tháng</dt>
                                 <dd class="text-sm text-content-secondary">{{ formatMoney(loan.monthly_payment, false) }} ₫</dd>
                             </div>
+                            <p v-if="loan.wallet_id" class="text-xs text-content-muted">
+                                Ví gắn: tự trừ khi đến hạn lịch trả
+                            </p>
                         </div>
                     </template>
                     <template v-else>

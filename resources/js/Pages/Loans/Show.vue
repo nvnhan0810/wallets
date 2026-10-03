@@ -60,7 +60,10 @@ const sortedPayments = computed(() =>
                     <h3 class="text-lg leading-6 font-medium text-content">Chi tiết khoản vay: {{ loan.name }}</h3>
                     <p class="mt-1 text-sm text-content-muted">Thông tin chi tiết và lịch trả nợ.</p>
                 </div>
-                <Link :href="route('loans.index')" class="text-primary-600 dark:text-primary-400 hover:text-primary-900 text-sm font-medium">&larr; Quay lại</Link>
+                <div class="flex items-center gap-3">
+                    <Link :href="route('loans.edit', loan.id)" class="text-primary-600 dark:text-primary-400 hover:text-primary-900 text-sm font-medium">Sửa</Link>
+                    <Link :href="route('loans.index')" class="text-primary-600 dark:text-primary-400 hover:text-primary-900 text-sm font-medium">&larr; Quay lại</Link>
+                </div>
             </div>
             <dl class="border-t border-default sm:divide-y sm:divide-default">
                 <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -75,9 +78,16 @@ const sortedPayments = computed(() =>
                     <dt class="text-sm font-medium text-content-muted">Ngày bắt đầu</dt>
                     <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">{{ loan.started_at }}</dd>
                 </div>
-                <div v-if="loan.wallet" class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt class="text-sm font-medium text-content-muted">Ví liên kết</dt>
-                    <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">{{ loan.wallet.name }}</dd>
+                    <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
+                        <template v-if="loan.wallet">{{ loan.wallet.name }} <span class="text-content-muted">(tự trừ theo lịch)</span></template>
+                        <template v-else>
+                            <span class="text-content-muted">Chưa gắn</span>
+                            —
+                            <Link :href="route('loans.edit', loan.id)" class="text-primary-600 dark:text-primary-400 hover:underline">Gắn ví</Link>
+                        </template>
+                    </dd>
                 </div>
                 <template v-if="loan.type === 'bank'">
                     <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">

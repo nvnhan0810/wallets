@@ -11,6 +11,7 @@ use Inertia\Inertia;
 use Wallets\Lending\Application\Command\CreateLoan;
 use Wallets\Lending\Application\Command\RecordLoanPayment;
 use Wallets\Lending\Application\Command\SettleLoan;
+use Wallets\Lending\Application\Command\UpdateLoan;
 use Wallets\Lending\Application\LoanSchedulePreviewService;
 use Wallets\Lending\Application\Query\GetLoanDetail;
 use Wallets\Lending\Application\Query\ListActiveLoans;
@@ -104,6 +105,41 @@ class LoanController extends Controller
             'wallets' => InertiaData::wallets($wallets),
             'draft' => session('loan_create_draft'),
         ]);
+    }
+
+    public function edit(Loan $loan)
+    {
+        $wallets = $this->queries->ask(new ListWallets(userId: auth()->id(), activeOnly: true));
+
+        return Inertia::render('Loans/Edit', [
+            'loan' => [
+                'id' => $loan->id,
+                'name' => $loan->name,
+                'type' => $loan->type,
+                'wallet_id' => $loan->wallet_id,
+                'principal_amount' => (float) $loan->principal_amount,
+                'started_at' => optional($loan->started_at)?->format('d/m/Y'),
+            ],
+            'wallets' => InertiaData::wallets($wallets),
+        ]);
+    }
+
+    public function update(Request $request, Loan $loan)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'wallet_id' => 'nullable|exists:wallets,id',
+        ]);
+
+        $validated['wallet_id'] = $validated['wallet_id'] ?? null;
+
+        $this->commands->dispatch(new UpdateLoan(
+            userId: auth()->id(),
+            loanId: $loan->id,
+            data: $validated,
+        ));
+
+        return redirect()->route('loans.show', $loan)->with('success', 'Đã cập nhật khoản vay.');
     }
 
     public function preview(Request $request)

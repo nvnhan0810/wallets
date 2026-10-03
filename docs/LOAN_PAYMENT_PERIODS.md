@@ -3,10 +3,10 @@
 > **Cập nhật 07/2026 (tách ví ↔ khoản vay):** Xem chi tiết thiết kế ở `LOAN_WALLET_REDESIGN_PLAN.md`.
 > - Kỳ trả được vật chất hóa vào `loan_custom_schedules` (thêm `due_date`, `status`, `payment_id`, `paid_amount`).
 > - Tạo khoản vay: chỉ ghi giao dịch vào ví khi **ngày bắt đầu là hôm nay** + tick nhận tiền (có ô "số tiền thực nhận"). Ngày bắt đầu trong quá khứ → các kỳ tới hạn ≤ hôm nay tự đánh dấu **đã trả** (không sinh giao dịch).
-> - Khi trả: chọn ví để trừ tiền, kỳ tương ứng chuyển **paid**.
-> - Dashboard nhắc kỳ trong `recurring_alert_days` ngày (kèm kỳ **quá hạn**). Đúng ngày chưa trả → gửi **Telegram** kèm link mở modal ghi trả.
-> - Lệnh: `php artisan loans:generate-periods [--loan=ID] [--no-backfill]` (sinh/điền kỳ cho khoản vay cũ), `php artisan loans:process-periods` (cập nhật due/overdue + gửi Telegram, chạy 07:00).
-> - Cấu hình Telegram: `TELEGRAM_BOT_TOKEN` (env, dùng chung) + Chat ID theo user tại trang **Cài đặt**.
+> - Khi trả: chọn ví để trừ tiền, kỳ tương ứng chuyển **paid**. Nếu khoản vay **đã gắn ví**, k3s CronJob chạy `loans:auto-pay-due` lúc **23:00 Asia/Ho_Chi_Minh** — kỳ đến hạn chưa có payment/transaction thì tạo từ ví gắn; đã có thì bỏ qua.
+> - Lịch trong `routes/console.php` chỉ là note (không chạy `schedule:run` trên prod).
+> - Lệnh: `php artisan loans:generate-periods [--loan=ID] [--no-backfill]`, `php artisan loans:auto-pay-due`.
+> - Sửa khoản vay (`/loans/{id}/edit`): chỉ đổi **tên** và **ví gắn** (không sửa gốc/lãi/kỳ).
 
 
 ## Tính năng

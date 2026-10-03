@@ -16,15 +16,13 @@ class ProcessRemindersCommand extends Command
 {
     protected $signature = 'finance:process-reminders';
 
-    protected $description = 'Cập nhật trạng thái kỳ (vay + thu/chi cố định) và gửi Telegram nhắc kỳ tới hạn';
+    protected $description = 'Cập nhật trạng thái kỳ thu/chi cố định và gửi Telegram nhắc (không xử lý khoản vay)';
 
     public function handle(
         RecurringOccurrenceGenerator $generator,
         RecurringOccurrenceStateService $state,
         TelegramNotifier $telegram,
     ): int {
-        $this->call('loans:process-periods');
-
         $this->syncOccurrences($generator);
         $state->transitionStatuses();
 
