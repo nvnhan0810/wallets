@@ -155,16 +155,23 @@
         window.MoneyInput = {
             parse(value) {
                 const digits = String(value ?? '').replace(/\D/g, '');
-                return digits ? parseInt(digits, 10) : 0;
+                return digits === '' ? 0 : parseInt(digits, 10);
             },
             format(value) {
-                const n = this.parse(value);
-                if (!n) return '';
-                return new Intl.NumberFormat('vi-VN').format(n);
+                // Keep empty distinct from zero (target balance / fee can be 0).
+                if (value === '' || value === null || value === undefined) return '';
+                if (typeof value === 'number') {
+                    if (!Number.isFinite(value)) return '';
+                    return new Intl.NumberFormat('vi-VN').format(Math.round(value));
+                }
+                const digits = String(value).replace(/\D/g, '');
+                if (digits === '') return '';
+                return new Intl.NumberFormat('vi-VN').format(parseInt(digits, 10));
             },
             onInput(el, callback) {
-                const raw = this.parse(el.value);
-                el.value = raw ? this.format(raw) : '';
+                const digits = String(el.value ?? '').replace(/\D/g, '');
+                const raw = digits === '' ? 0 : parseInt(digits, 10);
+                el.value = digits === '' ? '' : this.format(raw);
                 callback(raw);
             },
             initElement(el) {
@@ -172,10 +179,11 @@
                 el.dataset.moneyInit = '1';
                 el.type = 'text';
                 el.setAttribute('inputmode', 'numeric');
-                if (el.value) el.value = this.format(el.value);
+                if (el.value !== '' && el.value != null) el.value = this.format(el.value);
                 el.addEventListener('input', () => {
-                    const raw = this.parse(el.value);
-                    el.value = raw ? this.format(raw) : '';
+                    const digits = String(el.value ?? '').replace(/\D/g, '');
+                    const raw = digits === '' ? 0 : parseInt(digits, 10);
+                    el.value = digits === '' ? '' : this.format(raw);
                 });
             },
             initAll() {
@@ -186,9 +194,10 @@
         document.addEventListener('alpine:init', () => {
             Alpine.magic('money', () => ({
                 format(n) {
-                    const num = Number(n) || 0;
-                    if (!num) return '';
-                    return new Intl.NumberFormat('vi-VN').format(num);
+                    if (n === '' || n === null || n === undefined) return '';
+                    const num = Number(n);
+                    if (!Number.isFinite(num)) return '';
+                    return new Intl.NumberFormat('vi-VN').format(Math.round(num));
                 },
                 onInput(el, callback) {
                     window.MoneyInput.onInput(el, callback);
@@ -200,11 +209,12 @@
             const form = e.target;
             if (!form || form.tagName !== 'FORM') return;
             form.querySelectorAll('input.money-input').forEach((el) => {
-                if (!String(el.value).trim()) {
+                const digits = String(el.value ?? '').replace(/\D/g, '');
+                if (digits === '') {
                     el.value = '';
                     return;
                 }
-                el.value = String(window.MoneyInput.parse(el.value));
+                el.value = String(parseInt(digits, 10));
             });
         }, true);
 

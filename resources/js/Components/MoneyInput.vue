@@ -23,8 +23,12 @@ const inputEl = ref<HTMLInputElement | null>(null);
 const focused = ref(false);
 
 function formatDisplay(value: unknown): string {
-    const n = Math.round(Number(value) || 0);
-    if (!n) {
+    // Keep empty distinct from zero — cân đối số dư cuối = 0 must be typeable.
+    if (value === '' || value === null || value === undefined) {
+        return '';
+    }
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) {
         return '';
     }
     return new Intl.NumberFormat('vi-VN').format(n);
